@@ -38,19 +38,20 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0-alpha.1` implements the deterministic runtime foundation:
+`v0.1.0-alpha.2` adds the first bounded issue-to-experiment loop on top of the deterministic runtime:
 
-- Python repository inspection
-- `reproflow/v1` YAML schema validation
-- isolated Docker execution
-- no network during the reproduction phase
-- CPU, memory, PID, capability and filesystem restrictions
-- stdout / stderr / exit-code / timeout capture
-- expected-failure matching
-- repeated verification
-- a Unicode failure demo
+- structured `BugReport`, `Experiment`, `PlannerDecision`, and `AttemptHistory` models
+- provider-neutral `AgentProvider`
+- optional OpenAI Responses API provider
+- bounded planner budget (`--max-attempts`)
+- repository snapshots with size limits
+- target repository copied into the isolated Docker build context
+- generated experiment files restricted to `.reproflow/experiments/`
+- deterministic Verifier remains the only component allowed to declare success
+- evidence ledger: `bug-report.json`, `attempts.json`, `result.json`, and verified `repro.yaml`
+- `reproflow run ... --repo ...` for repository-backed capsules
 
-The AI issue parser and bounded experiment planner are the next milestone.
+The original deterministic `reproflow/v1` runtime remains usable without any AI provider.
 
 ## Requirements
 
@@ -97,6 +98,33 @@ Run 3/3: MATCH
 VERIFIED REPRODUCTION
 Repeatability: 3/3
 ```
+
+Run a capsule that depends on a source repository:
+
+```bash
+reproflow run examples/planner-demo/repro.yaml \
+  --repo examples/planner-demo
+```
+
+### AI-assisted reproduction (alpha.2)
+
+Install the optional OpenAI provider:
+
+```bash
+pip install -e ".[ai]"
+export OPENAI_API_KEY="..."
+```
+
+Then give ReproFlow a repository and an untrusted bug report:
+
+```bash
+reproflow reproduce \
+  --repo examples/planner-demo \
+  --issue examples/planner-demo/issue.md \
+  --max-attempts 5
+```
+
+The provider may parse the issue and propose experiments, but it cannot mark an attempt as successful. Every proposed command is executed in the sandbox and checked by the deterministic Verifier. On success, ReproFlow writes an evidence directory under `.repro/`.
 
 ## `repro.yaml`
 
@@ -163,9 +191,11 @@ The long-term goal is for `reproflow/v1` to remain useful even without any AI pr
 - [x] deterministic verifier
 - [x] repeated verification
 - [x] Unicode demo
-- [ ] GitHub Issue parser
-- [ ] provider-neutral AI interface
-- [ ] bounded reproduction planner
+- [x] local Issue text parser through provider interface
+- [x] provider-neutral AI interface
+- [x] bounded reproduction planner
+- [x] attempt history and evidence ledger
+- [ ] GitHub Issue URL input
 - [ ] testcase minimizer
 - [ ] regression-test generation
 - [ ] GitHub Action
@@ -220,19 +250,20 @@ ReproFlow 坚持 evidence-first：**模型输出本身永远不等于证明。**
 
 ## 当前状态
 
-`v0.1.0-alpha.1` 先完成不依赖 AI 的确定性运行时基础：
+`v0.1.0-alpha.2` 在确定性运行时之上加入了第一条受限的 Issue → Experiment 闭环：
 
-- Python 仓库识别
-- `reproflow/v1` YAML Schema 校验
-- Docker 隔离执行
-- 复现阶段默认断网
-- CPU、内存、PID、Linux capability 与文件系统限制
-- 捕获 stdout / stderr / exit code / timeout
-- 目标失败条件匹配
-- 多次重复验证
-- Unicode 崩溃 Demo
+- 结构化 `BugReport`、`Experiment`、`PlannerDecision`、`AttemptHistory`
+- provider-neutral `AgentProvider`
+- 可选 OpenAI Responses API Provider
+- `--max-attempts` 限制实验预算
+- 有大小上限的仓库快照
+- 把目标仓库复制进隔离 Docker build context 后再执行实验
+- Agent 生成文件只能放在 `.reproflow/experiments/`
+- 是否复现成功仍然只能由 deterministic Verifier 判断
+- 自动保存 `bug-report.json`、`attempts.json`、`result.json` 和成功后的 `repro.yaml`
+- 支持 `reproflow run ... --repo ...` 重新执行依赖源码仓库的 capsule
 
-下一阶段再加入 AI Issue parser 和有预算上限的实验 Planner。
+不使用任何 AI Provider 时，原来的 `reproflow/v1` runtime 仍然可以独立运行。
 
 ## 环境要求
 
@@ -330,6 +361,26 @@ verification:
 
 依赖安装命令会在 reproduction phase 之前构建进临时镜像。不要通过 build args 或 capsule 文件把宿主机密钥传入构建过程。
 
+## alpha.2：从 Issue 生成实验
+
+安装可选 OpenAI Provider：
+
+```bash
+pip install -e ".[ai]"
+export OPENAI_API_KEY="..."
+```
+
+然后运行：
+
+```bash
+reproflow reproduce \
+  --repo examples/planner-demo \
+  --issue examples/planner-demo/issue.md \
+  --max-attempts 5
+```
+
+Issue 文本、仓库内容以及实验输出都按不可信数据处理。模型只能提出结构化实验；真正的成功判定来自 Docker 中的真实执行证据与 Verifier。
+
 ## 项目哲学
 
 ReproFlow 刻意把“探索”和“证明”分离：
@@ -350,9 +401,11 @@ Verifier      → 判断目标故障是否确实复现
 - [x] deterministic verifier
 - [x] repeated verification
 - [x] Unicode demo
-- [ ] GitHub Issue parser
-- [ ] provider-neutral AI interface
-- [ ] bounded reproduction planner
+- [x] local Issue text parser through provider interface
+- [x] provider-neutral AI interface
+- [x] bounded reproduction planner
+- [x] attempt history and evidence ledger
+- [ ] GitHub Issue URL input
 - [ ] testcase minimizer
 - [ ] regression-test generation
 - [ ] GitHub Action

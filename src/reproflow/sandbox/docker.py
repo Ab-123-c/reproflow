@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 import time
@@ -23,8 +24,9 @@ class DockerSandboxRunner:
     host secrets, and no Docker socket mount.
     """
 
-    def __init__(self, docker_bin: str = "docker") -> None:
+    def __init__(self, docker_bin: str = "docker", source_root: Path | None = None) -> None:
         self.docker_bin = docker_bin
+        self.source_root = source_root.resolve() if source_root is not None else None
 
     def check_available(self) -> None:
         try:
@@ -47,6 +49,8 @@ class DockerSandboxRunner:
         self.check_available()
         with tempfile.TemporaryDirectory(prefix="reproflow-") as temp:
             root = Path(temp)
+            if self.source_root is not None:
+                self._copy_source_tree(self.source_root, root)
             self._write_capsule_files(root, spec.files)
             image = self._build_image(root, spec)
             environment_hash = self._image_hash(image)
@@ -60,12 +64,32 @@ class DockerSandboxRunner:
                     check=False,
                 )
 
+
+    def _copy_source_tree(self, source: Path, destination: Path) -> None:
+        if not source.is_dir():
+            raise ValueError(f"Source repository does not exist: {source}")
+        skip_dirs = {".git", ".venv", "venv", "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".repro", ".reproflow", "node_modules"}
+        for path in source.rglob("*"):
+            relative = path.relative_to(source)
+            if any(part in skip_dirs for part in relative.parts):
+                continue
+            if path.is_symlink():
+                continue
+            target = destination / relative
+            if path.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
+            elif path.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
+
     def _write_capsule_files(self, root: Path, files: dict[str, str]) -> None:
         for relative, content in files.items():
             path = PurePosixPath(relative)
             if path.is_absolute() or ".." in path.parts:
                 raise ValueError(f"Unsafe capsule file path: {relative}")
             destination = root.joinpath(*path.parts)
+            if self.source_root is not None and destination.exists():
+                raise ValueError(f"Capsule file would overwrite source repository content: {relative}")
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8")
 

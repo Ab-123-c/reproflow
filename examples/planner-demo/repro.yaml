@@ -1,0 +1,23 @@
+schema: reproflow/v1
+metadata:
+  id: planner-demo-unicode
+  title: normalize_username crashes on Unicode usernames
+environment:
+  image: python:3.12-slim
+setup:
+  commands:
+    - pip install -e .
+files:
+  .reproflow/experiments/demo/repro_case.py: |
+    from demo_app import normalize_username
+    normalize_username("你")
+run:
+  command: python .reproflow/experiments/demo/repro_case.py
+  timeout_seconds: 10
+failure:
+  type: exception
+  stderr_contains:
+    - UnicodeEncodeError
+verification:
+  repetitions: 3
+  required_failures: 3

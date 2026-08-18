@@ -4,14 +4,14 @@ import hashlib
 import re
 
 from reproflow.capsule.schema import FailureExpectation, ReproSpec
-from reproflow.sandbox.docker import DockerSandboxRunner
+from reproflow.sandbox.base import SandboxRunner
 from reproflow.sandbox.models import ExecutionEvidence
 
 from .models import RunVerification, VerificationResult
 
 
 class Verifier:
-    def __init__(self, runner: DockerSandboxRunner) -> None:
+    def __init__(self, runner: SandboxRunner) -> None:
         self.runner = runner
 
     def verify(self, spec: ReproSpec) -> VerificationResult:
