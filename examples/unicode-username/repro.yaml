@@ -1,0 +1,29 @@
+schema: reproflow/v1
+metadata:
+  id: demo-unicode-username
+  title: Unicode username crashes ASCII normalization
+  source:
+    type: demo
+environment:
+  image: python:3.12-slim
+setup:
+  commands: []
+files:
+  app.py: |
+    def normalize_username(value: str) -> str:
+        data = value.encode("ascii")
+        return data.decode().lower()
+  repro.py: |
+    from app import normalize_username
+
+    normalize_username("你")
+run:
+  command: python repro.py
+  timeout_seconds: 10
+failure:
+  type: exception
+  stderr_contains:
+    - UnicodeEncodeError
+verification:
+  repetitions: 3
+  required_failures: 3
