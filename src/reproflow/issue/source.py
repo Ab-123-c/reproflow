@@ -19,7 +19,7 @@ MAX_API_RESPONSE_BYTES = 2 * 1024 * 1024
 MAX_ISSUE_BODY_CHARS = 100_000
 MAX_COMMENT_BODY_CHARS = 20_000
 MAX_RENDERED_CHARS = 200_000
-USER_AGENT = "reproflow/0.1.0a3"
+USER_AGENT = "reproflow/0.1.0a4"
 
 _GITHUB_SEGMENT = re.compile(r"^[A-Za-z0-9_.-]+$")
 
@@ -104,7 +104,7 @@ def load_issue_source(
 
     if "://" in candidate:
         raise IssueSourceError(
-            "Unsupported issue URL. alpha.3 accepts local files or "
+            "Unsupported issue URL. ReproFlow accepts local files or "
             "https://github.com/<owner>/<repo>/issues/<number>."
         )
 
@@ -149,7 +149,7 @@ def fetch_github_issue(
         raise IssueSourceError("GitHub returned an unexpected issue payload.")
     if "pull_request" in issue:
         raise IssueSourceError(
-            "The supplied URL resolves to a pull request. alpha.3 accepts GitHub Issues only."
+            "The supplied URL resolves to a pull request. ReproFlow accepts GitHub Issues only."
         )
 
     comments: list[dict[str, Any]] = []

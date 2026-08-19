@@ -1,28 +1,35 @@
-# ReproFlow v0.1.0-alpha.3 — GitHub Issue Ingestion
+# ReproFlow v0.1.0-alpha.4 — Issue-aware Repository Context
 
-The third alpha connects ReproFlow's bounded reproduction loop to real maintainer input: a GitHub Issue URL.
+The fourth alpha improves what the planner sees before it proposes experiments. Instead of taking the first structurally convenient Python files, ReproFlow now ranks a bounded repository snapshot against the untrusted bug report.
 
 ## Highlights
 
-- `reproflow reproduce --issue` now accepts either a local text/Markdown file or a GitHub Issue URL.
-- Public GitHub Issues work without a token; `GH_TOKEN` or `GITHUB_TOKEN` can be used for private access and higher API limits.
-- Issue title, body, labels, author, and up to 20 comments are converted into bounded untrusted planner input.
-- `--github-max-comments` controls comment ingestion from 0 to 100.
-- Only `https://github.com/<owner>/<repo>/issues/<number>` is accepted as a remote source; ReproFlow constructs `api.github.com` requests itself.
-- Pull requests are rejected from this path even though GitHub's Issues API can represent them as issue-shaped objects.
-- Remote issue runs get stable fallback evidence directories such as `.repro/github-owner-repo-123/`.
-- New size limits reduce the risk of oversized issue bodies or comments overwhelming the planner context.
+- Repository context selection is deterministic and issue-aware.
+- Project metadata remains structurally prioritized.
+- Relevant Python source and test files can be promoted when bounded Issue terms match their paths, filenames, or a bounded prefix of their contents.
+- Snapshot construction now records selection terms, per-file scores, total candidate count, and whether a bound truncated the result.
+- Candidate scanning itself is bounded, in addition to existing selected-file and character budgets.
+- `.git`, virtual environments, caches, `.repro`, `.reproflow`, and `node_modules` remain excluded.
+- `reproflow context` previews the exact selected file list without initializing an AI provider or starting Docker.
+- The reproduction planner uses the same issue-aware selector, so the preview and actual planner path share one implementation.
 
 ## Example
 
 ```bash
-pip install -e ".[ai]"
-export OPENAI_API_KEY="..."
+reproflow context \
+  --repo . \
+  --issue https://github.com/OWNER/REPO/issues/123
+```
 
+Example output includes a deterministic score beside each selected file. The score is only a relevance heuristic for context allocation. It is not evidence that the file caused the bug.
+
+Then run the normal reproduction loop:
+
+```bash
 reproflow reproduce \
   --repo . \
   --issue https://github.com/OWNER/REPO/issues/123 \
   --max-attempts 5
 ```
 
-The GitHub network fetch happens before sandbox execution. Issue text and comments remain untrusted data; the model still cannot declare success. Docker execution and the deterministic Verifier remain the proof boundary.
+Issue text and repository contents remain untrusted data. The selector does not execute repository code, and the deterministic Verifier remains the only component allowed to declare a reproduction successful.

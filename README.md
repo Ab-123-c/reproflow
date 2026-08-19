@@ -38,15 +38,15 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0-alpha.3` connects the bounded reproduction loop to GitHub Issue input:
+`v0.1.0-alpha.4` makes repository context issue-aware before the planner sees it:
 
-- local Markdown/text bug reports still work
-- `https://github.com/<owner>/<repo>/issues/<number>` can now be passed directly to `--issue`
-- issue title, body, labels, author, and bounded comments are loaded through the GitHub REST API
-- optional `GH_TOKEN` / `GITHUB_TOKEN` authentication
-- `--github-max-comments` limits comment ingestion (default 20, max 100)
-- remote input is allowlisted to GitHub.com and size-bounded before planner ingestion
-- pull requests are rejected from the Issue input path
+- repository snapshots remain strictly bounded by file count and character budgets
+- project metadata stays structurally prioritized
+- bounded terms from the untrusted Issue can promote relevant Python source/test files by path and content matches
+- `.git`, virtual environments, caches, `.repro`, `.reproflow`, and `node_modules` remain excluded
+- selection is deterministic and never executes repository code
+- `reproflow context --repo ... --issue ...` previews exactly which files would be exposed to the planner
+- context preview requires neither an AI provider nor Docker
 - deterministic Verifier remains the only component allowed to declare success
 
 The original deterministic `reproflow/v1` runtime remains usable without any AI provider.
@@ -111,7 +111,7 @@ reproflow reproduce \
   --max-attempts 5
 ```
 
-### GitHub Issue URL — new in alpha.3
+### GitHub Issue URL
 
 ```bash
 reproflow reproduce \
@@ -139,6 +139,20 @@ export GH_TOKEN="..."
 The provider may parse the Issue and propose experiments, but it cannot mark an attempt as successful. Every proposed command is executed in the sandbox and checked by the deterministic Verifier. On success, ReproFlow writes evidence under `.repro/`.
 
 See [`docs/github-issues.md`](docs/github-issues.md) for the GitHub input trust boundary and limits.
+
+### Preview repository context — new in alpha.4
+
+Before spending model tokens or starting Docker, inspect the bounded repository snapshot that ReproFlow would expose to the planner:
+
+```bash
+reproflow context \
+  --repo . \
+  --issue https://github.com/OWNER/REPO/issues/123
+```
+
+The preview shows selected file paths, deterministic relevance scores, and the bounded Issue terms used for ranking. A high score is only a context-selection hint; it is not evidence that the file caused the bug.
+
+See [`docs/repository-context.md`](docs/repository-context.md) for the selector rules and threat model.
 
 ## `repro.yaml`
 
@@ -198,7 +212,7 @@ The long-term goal is for `reproflow/v1` to remain useful even without any AI pr
 - [x] bounded reproduction planner
 - [x] attempt history and evidence ledger
 - [x] GitHub Issue URL input
-- [ ] smarter repository context selection
+- [x] smarter repository context selection
 - [ ] testcase minimizer
 - [ ] regression-test generation
 - [ ] GitHub Action
@@ -251,15 +265,14 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.0-alpha.3` 把 alpha.2 的受限 Issue → Experiment 闭环接到了真实 GitHub Issue 输入：
+`v0.1.0-alpha.4` 开始在 Planner 之前根据 Issue 对仓库上下文做受限、确定性的相关性排序：
 
-- 原来的本地 Markdown / 文本 Issue 继续支持
-- `--issue` 现在可以直接接收 `https://github.com/<owner>/<repo>/issues/<number>`
-- 通过 GitHub REST API 获取标题、正文、标签、作者和受数量限制的评论
-- 可选使用 `GH_TOKEN` / `GITHUB_TOKEN`
-- `--github-max-comments` 控制最多载入多少条评论，默认 20、最高 100
-- 远程 URL 只允许 GitHub.com，进入 Planner 前还会进行大小限制
-- Pull Request 不会被当成 Issue 输入
+- Repository snapshot 继续受文件数量和字符预算限制
+- `pyproject.toml` 等项目元数据仍保持结构优先级
+- 从不可信 Issue 中提取的有限关键词，只能用于提升相关 Python 源码/测试文件的路径或内容匹配分数
+- `.git`、虚拟环境、缓存、`.repro`、`.reproflow` 和 `node_modules` 继续排除
+- 上下文选择过程不会执行仓库代码
+- 新增 `reproflow context --repo ... --issue ...`，可以在不调用模型、不启动 Docker 的情况下预览 Planner 会看到哪些文件
 - 是否复现成功仍然只能由 deterministic Verifier 判断
 
 不使用任何 AI Provider 时，原来的 `reproflow/v1` runtime 仍然可以独立运行。
@@ -299,7 +312,7 @@ reproflow validate examples/unicode-username/repro.yaml
 reproflow run examples/unicode-username/repro.yaml
 ```
 
-## alpha.3：直接读取 GitHub Issue
+## GitHub Issue 输入
 
 先安装可选 OpenAI Provider：
 
@@ -346,6 +359,20 @@ Issue 正文、评论、仓库内容和实验输出都按不可信数据处理�
 
 更多细节见 [`docs/github-issues.md`](docs/github-issues.md)。
 
+### alpha.4：先预览 Planner 上下文
+
+在消耗模型请求或启动 Docker 之前，可以先看 ReproFlow 最终会选哪些仓库文件：
+
+```bash
+reproflow context \
+  --repo . \
+  --issue https://github.com/OWNER/REPO/issues/123
+```
+
+输出会展示选中文件、确定性的相关性分数和用于排序的有限 Issue 关键词。分数只代表“更值得放进上下文”，不代表这个文件已经被证明与 Bug 有关。
+
+选择规则和威胁模型见 [`docs/repository-context.md`](docs/repository-context.md)。
+
 ## 安全模型
 
 GitHub Issue 抓取发生在 sandbox 运行之前的 CLI 进程，并且只接受 GitHub.com Issue URL。Reproduction phase 仍然默认禁止网络、根文件系统只读、不挂载 Docker socket、丢弃 Linux capabilities、启用 `no-new-privileges`、CPU/内存/PID 限制和执行超时。
@@ -376,7 +403,7 @@ Verifier      → 判断目标故障是否确实复现
 - [x] bounded reproduction planner
 - [x] attempt history and evidence ledger
 - [x] GitHub Issue URL input
-- [ ] smarter repository context selection
+- [x] smarter repository context selection
 - [ ] testcase minimizer
 - [ ] regression-test generation
 - [ ] GitHub Action

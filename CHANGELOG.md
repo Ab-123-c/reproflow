@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.0-alpha.4
+
+- Rank bounded repository context using deterministic relevance hints extracted from the untrusted Issue.
+- Keep project metadata structurally prioritized while promoting matching Python source/test paths and bounded content.
+- Record selection terms, per-file scores, and candidate counts in `RepositorySnapshot`.
+- Add a candidate-scan bound in addition to existing file-count and character budgets.
+- Add `reproflow context --repo ... --issue ...` to preview planner-visible files without AI or Docker.
+- Make the reproduction planner use the same issue-aware snapshot builder.
+- Continue excluding `.git`, virtual environments, caches, `.repro`, `.reproflow`, and `node_modules`.
+- Add repository-context documentation and unit coverage for ranking, determinism, bounds, and generated-directory exclusion.
+
 ## v0.1.0-alpha.3
 
 - Accept a local bug-report file or a `https://github.com/<owner>/<repo>/issues/<number>` URL through `reproflow reproduce --issue`.

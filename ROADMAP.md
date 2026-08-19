@@ -27,9 +27,18 @@
 - [x] stable output slug for remote issues
 - [x] unit tests for URL parsing, auth headers, comments, PR rejection, and errors
 
+## v0.1.0-alpha.4 — issue-aware repository context
+
+- [x] deterministic Issue-term extraction
+- [x] path/content relevance ranking inside bounded snapshots
+- [x] candidate-scan limit in addition to file/character budgets
+- [x] context-selection metadata for transparency
+- [x] `reproflow context` preview command
+- [x] planner integration using the same selector
+
 ## v0.2.x — real maintainer inputs
 
-- [ ] smarter repository context selection
+- [x] smarter repository context selection (first bounded heuristic in alpha.4)
 - [ ] failure-target hardening
 - [ ] case studies on external OSS repositories
 

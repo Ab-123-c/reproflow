@@ -7,6 +7,8 @@ ReproFlow processes untrusted repository content, issue text, model output, and 
 - Issue text, GitHub Issue bodies/comments, and repository snapshots are treated as data, not agent instructions.
 - GitHub Issue ingestion accepts only `https://github.com/<owner>/<repo>/issues/<number>` and constructs requests to `api.github.com` internally.
 - GitHub input is size-bounded before it reaches the planner; comments are capped by count and per-comment length.
+- Repository context selection treats Issue terms only as bounded relevance hints; they cannot expand eligible file types/directories or execute repository code.
+- Repository context scanning is bounded by candidate count, per-file scan length, selected-file count, and total selected characters.
 - `GH_TOKEN` / `GITHUB_TOKEN` are used only as GitHub API authorization headers and are not intentionally copied into planner text or reproduction capsules.
 - The model can propose experiments but cannot declare a reproduction successful.
 - Generated experiment files are restricted to `.reproflow/experiments/` and cannot overwrite copied source files.

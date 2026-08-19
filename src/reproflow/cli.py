@@ -13,6 +13,7 @@ from reproflow.agent.provider import ProviderError
 from reproflow.capsule.loader import load_repro_spec
 from reproflow.capsule.writer import write_planning_result
 from reproflow.issue.source import IssueSourceError, load_issue_source
+from reproflow.repo.context import build_repository_snapshot
 from reproflow.repo.detector import detect_repository
 from reproflow.sandbox.docker import DockerSandboxRunner, DockerUnavailableError
 from reproflow.verifier.verifier import Verifier
@@ -42,6 +43,72 @@ def inspect(
         console.print(f"\n[bold]Install[/bold]\n  {profile.install_command}")
     if profile.test_command:
         console.print(f"\n[bold]Test[/bold]\n  {profile.test_command}")
+
+
+@app.command("context")
+def context_command(
+    repo: Path = typer.Option(
+        Path("."),
+        "--repo",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        help="Python repository to inspect for planner context.",
+    ),
+    issue: str = typer.Option(
+        ...,
+        "--issue",
+        help="Path to a text/Markdown bug report or a GitHub Issue URL.",
+    ),
+    github_max_comments: int = typer.Option(
+        20,
+        "--github-max-comments",
+        min=0,
+        max=100,
+        help="Maximum GitHub Issue comments to load. Use 0 for the issue body only.",
+    ),
+    max_files: int = typer.Option(
+        40,
+        "--max-files",
+        min=1,
+        max=100,
+        help="Maximum files in the previewed repository snapshot.",
+    ),
+) -> None:
+    """Preview the bounded, issue-aware repository context without AI or Docker."""
+    try:
+        loaded_issue = load_issue_source(issue, max_comments=github_max_comments)
+        snapshot = build_repository_snapshot(
+            repo,
+            issue_text=loaded_issue.text,
+            max_files=max_files,
+        )
+    except (IssueSourceError, ValueError) as exc:
+        console.print(f"[red]Context error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+
+    console.print(f"\n[bold]ReproFlow[/bold] {__version__}")
+    console.print(f"[bold]Issue source:[/bold] {loaded_issue.display_name}")
+    console.print(
+        f"[bold]Candidates:[/bold] {snapshot.candidate_count}   "
+        f"[bold]Selected:[/bold] {len(snapshot.files)}   "
+        f"[bold]Truncated:[/bold] {'yes' if snapshot.truncated else 'no'}"
+    )
+    if snapshot.selection_terms:
+        console.print(
+            "[bold]Selection terms:[/bold] " + ", ".join(snapshot.selection_terms)
+        )
+
+    table = Table(title="Planner context")
+    table.add_column("Score", justify="right")
+    table.add_column("File")
+    table.add_column("Chars", justify="right")
+    for name, text in snapshot.files.items():
+        table.add_row(str(snapshot.selection_scores.get(name, 0)), name, str(len(text)))
+    console.print(table)
+    console.print(
+        "\n[dim]Scores are deterministic relevance hints, not evidence that a file causes the bug.[/dim]"
+    )
 
 
 @app.command("validate")
