@@ -1,22 +1,28 @@
-# ReproFlow v0.1.0-alpha.2 — Bounded Issue-to-Experiment Loop
+# ReproFlow v0.1.0-alpha.3 — GitHub Issue Ingestion
 
-This alpha adds the first AI-assisted exploration loop while preserving ReproFlow's evidence-first boundary: providers may propose experiments, but only deterministic execution and verification can produce `VERIFIED`.
+The third alpha connects ReproFlow's bounded reproduction loop to real maintainer input: a GitHub Issue URL.
 
 ## Highlights
 
-- Structured bug reports, experiments, planner decisions, and attempt history.
-- Provider-neutral `AgentProvider` interface.
-- Optional OpenAI Responses API adapter with JSON-schema output and local Pydantic validation.
-- Hard planner budget with `VERIFIED`, `NOT_REPRODUCIBLE`, and `NEEDS_INFORMATION` results.
-- Repository-backed Docker execution via `--repo`.
-- Generated files constrained to `.reproflow/experiments/` and prevented from overwriting source content.
-- Evidence ledger persisted under `.repro/`.
-- New repo-backed Unicode planner demo and Docker integration test.
+- `reproflow reproduce --issue` now accepts either a local text/Markdown file or a GitHub Issue URL.
+- Public GitHub Issues work without a token; `GH_TOKEN` or `GITHUB_TOKEN` can be used for private access and higher API limits.
+- Issue title, body, labels, author, and up to 20 comments are converted into bounded untrusted planner input.
+- `--github-max-comments` controls comment ingestion from 0 to 100.
+- Only `https://github.com/<owner>/<repo>/issues/<number>` is accepted as a remote source; ReproFlow constructs `api.github.com` requests itself.
+- Pull requests are rejected from this path even though GitHub's Issues API can represent them as issue-shaped objects.
+- Remote issue runs get stable fallback evidence directories such as `.repro/github-owner-repo-123/`.
+- New size limits reduce the risk of oversized issue bodies or comments overwhelming the planner context.
 
-## Known alpha limitations
+## Example
 
-- `reproflow reproduce` currently exposes only the OpenAI provider in the CLI, although the core interface is provider-neutral.
-- Repository context selection is heuristic and intentionally bounded.
-- The provider still proposes the expected failure matcher; future hardening should lock target-failure semantics more tightly to independently parsed issue evidence.
-- Dependency installation happens during Docker build and may use network access. No host secrets are passed by ReproFlow, but untrusted build hooks remain a security consideration.
-- GitHub Issue URL ingestion, testcase minimization, regression-test generation, and GitHub Action integration are not included yet.
+```bash
+pip install -e ".[ai]"
+export OPENAI_API_KEY="..."
+
+reproflow reproduce \
+  --repo . \
+  --issue https://github.com/OWNER/REPO/issues/123 \
+  --max-attempts 5
+```
+
+The GitHub network fetch happens before sandbox execution. Issue text and comments remain untrusted data; the model still cannot declare success. Docker execution and the deterministic Verifier remain the proof boundary.

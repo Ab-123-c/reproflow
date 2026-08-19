@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.0-alpha.3
+
+- Accept a local bug-report file or a `https://github.com/<owner>/<repo>/issues/<number>` URL through `reproflow reproduce --issue`.
+- Add a GitHub REST API issue loader with optional `GH_TOKEN` / `GITHUB_TOKEN` authentication.
+- Load a bounded number of issue comments with `--github-max-comments` (default 20, maximum 100).
+- Restrict remote issue ingestion to GitHub.com and construct `api.github.com` requests internally.
+- Add response, file-size, body, comment, and total-rendered-text limits before planner ingestion.
+- Reject pull-request payloads in the Issue input path.
+- Add deterministic output slugs such as `github-owner-repo-123` for remote issues.
+- Add GitHub Issue ingestion documentation and unit tests.
+
 ## v0.1.0-alpha.2
 
 - Add structured BugReport, Experiment, PlannerDecision, AttemptHistory, and PlanningResult models.
