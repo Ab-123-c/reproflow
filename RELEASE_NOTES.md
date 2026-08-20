@@ -1,35 +1,53 @@
-# ReproFlow v0.1.0-alpha.4 — Issue-aware Repository Context
+# ReproFlow v0.1.0-alpha.5 — Verified Testcase Minimization
 
-The fourth alpha improves what the planner sees before it proposes experiments. Instead of taking the first structurally convenient Python files, ReproFlow now ranks a bounded repository snapshot against the untrusted bug report.
+The fifth alpha adds ReproFlow's first deterministic testcase minimizer. The important rule stays unchanged: a smaller testcase is accepted only when the normal sandbox + Verifier path proves that the target failure still reproduces.
 
 ## Highlights
 
-- Repository context selection is deterministic and issue-aware.
-- Project metadata remains structurally prioritized.
-- Relevant Python source and test files can be promoted when bounded Issue terms match their paths, filenames, or a bounded prefix of their contents.
-- Snapshot construction now records selection terms, per-file scores, total candidate count, and whether a bound truncated the result.
-- Candidate scanning itself is bounded, in addition to existing selected-file and character budgets.
-- `.git`, virtual environments, caches, `.repro`, `.reproflow`, and `node_modules` remain excluded.
-- `reproflow context` previews the exact selected file list without initializing an AI provider or starting Docker.
-- The reproduction planner uses the same issue-aware selector, so the preview and actual planner path share one implementation.
+- `reproflow minimize` reduces one file embedded in a verified `reproflow/v1` capsule.
+- A baseline verification runs first; unverified capsules are refused.
+- Every candidate reduction is executed again through Docker and checked by the deterministic Verifier.
+- Minimization is bounded with `--max-checks` and `--min-length`.
+- The original capsule is not overwritten unless you explicitly choose the same output path.
+- `reproflow doctor` checks local runtime readiness before a reproduction run.
+- `reproflow inspect --json`, `reproflow context --json`, and `reproflow doctor --json` make the CLI easier to consume from scripts and CI.
 
-## Example
-
-```bash
-reproflow context \
-  --repo . \
-  --issue https://github.com/OWNER/REPO/issues/123
-```
-
-Example output includes a deterministic score beside each selected file. The score is only a relevance heuristic for context allocation. It is not evidence that the file caused the bug.
-
-Then run the normal reproduction loop:
+## Minimize a verified capsule
 
 ```bash
-reproflow reproduce \
-  --repo . \
-  --issue https://github.com/OWNER/REPO/issues/123 \
-  --max-attempts 5
+reproflow minimize examples/unicode-username/repro.yaml \
+  --file repro.py \
+  --max-checks 40
 ```
 
-Issue text and repository contents remain untrusted data. The selector does not execute repository code, and the deterministic Verifier remains the only component allowed to declare a reproduction successful.
+The default output is `repro.min.yaml` beside the source capsule. Re-run it normally:
+
+```bash
+reproflow run examples/unicode-username/repro.min.yaml
+```
+
+For capsules that depend on a source repository, pass the same repository to the minimizer:
+
+```bash
+reproflow minimize path/to/repro.yaml \
+  --file repro.py \
+  --repo .
+```
+
+## Check a Codespace or workstation
+
+```bash
+reproflow doctor
+reproflow doctor --json
+```
+
+`OPENAI_API_KEY` and a GitHub token are optional for the deterministic runtime. Docker is required for `run`, `reproduce`, and `minimize`.
+
+## Machine-readable inspection
+
+```bash
+reproflow inspect . --json
+reproflow context --repo . --issue issue.md --json
+```
+
+The JSON paths are intended for automation. They do not change the evidence model: context scores are only selection hints, and only the Verifier can declare a reproduction successful.

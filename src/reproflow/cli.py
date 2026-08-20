@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
+
+import yaml
 
 import typer
 from pydantic import ValidationError
@@ -12,7 +15,9 @@ from reproflow.agent.planner import ReproductionPlanner
 from reproflow.agent.provider import ProviderError
 from reproflow.capsule.loader import load_repro_spec
 from reproflow.capsule.writer import write_planning_result
+from reproflow.doctor import collect_doctor_report
 from reproflow.issue.source import IssueSourceError, load_issue_source
+from reproflow.minimizer import minimize_text
 from reproflow.repo.context import build_repository_snapshot
 from reproflow.repo.detector import detect_repository
 from reproflow.sandbox.docker import DockerSandboxRunner, DockerUnavailableError
@@ -25,6 +30,7 @@ console = Console()
 @app.command()
 def inspect(
     repo: Path = typer.Argument(Path("."), exists=True, file_okay=False, dir_okay=True),
+    as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
 ) -> None:
     """Inspect a Python repository using deterministic detection."""
     try:
@@ -32,6 +38,9 @@ def inspect(
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
+    if as_json:
+        console.print(json.dumps(profile.model_dump(mode="json"), indent=2, sort_keys=True))
+        return
     console.print(f"\n[bold]ReproFlow[/bold] {__version__}\n")
     table = Table(title="Repository", show_header=False)
     table.add_row("Language", profile.language)
@@ -74,6 +83,7 @@ def context_command(
         max=100,
         help="Maximum files in the previewed repository snapshot.",
     ),
+    as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
 ) -> None:
     """Preview the bounded, issue-aware repository context without AI or Docker."""
     try:
@@ -86,6 +96,25 @@ def context_command(
     except (IssueSourceError, ValueError) as exc:
         console.print(f"[red]Context error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
+
+    if as_json:
+        payload = {
+            "issue_source": loaded_issue.display_name,
+            "candidate_count": snapshot.candidate_count,
+            "selected_count": len(snapshot.files),
+            "truncated": snapshot.truncated,
+            "selection_terms": snapshot.selection_terms,
+            "files": [
+                {
+                    "path": name,
+                    "score": snapshot.selection_scores.get(name, 0),
+                    "chars": len(text),
+                }
+                for name, text in snapshot.files.items()
+            ],
+        }
+        console.print(json.dumps(payload, indent=2, sort_keys=True))
+        return
 
     console.print(f"\n[bold]ReproFlow[/bold] {__version__}")
     console.print(f"[bold]Issue source:[/bold] {loaded_issue.display_name}")
@@ -109,6 +138,123 @@ def context_command(
     console.print(
         "\n[dim]Scores are deterministic relevance hints, not evidence that a file causes the bug.[/dim]"
     )
+
+
+@app.command("doctor")
+def doctor_command(
+    as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """Check whether the local machine is ready to run ReproFlow."""
+    report = collect_doctor_report()
+    if as_json:
+        console.print(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+        return
+
+    console.print(f"\n[bold]ReproFlow doctor[/bold] {__version__}\n")
+    table = Table(show_header=False)
+    table.add_row("Python", f"{report.python_version} {'✓' if report.python_supported else '✗'}")
+    table.add_row("Docker CLI", "✓" if report.docker_cli else "✗")
+    docker_status = "✓" if report.docker_daemon else "✗"
+    if report.docker_version:
+        docker_status += f" ({report.docker_version})"
+    table.add_row("Docker daemon", docker_status)
+    table.add_row("OpenAI package", "✓" if report.openai_package else "optional / not installed")
+    table.add_row("OPENAI_API_KEY", "set" if report.openai_api_key else "not set")
+    table.add_row("GitHub token", "set" if report.github_token else "optional / not set")
+    console.print(table)
+    if report.runtime_ready:
+        console.print("\n[bold green]Runtime ready[/bold green]")
+    else:
+        console.print("\n[bold yellow]Runtime not ready[/bold yellow]")
+        raise typer.Exit(code=1)
+
+
+@app.command("minimize")
+def minimize_command(
+    spec_path: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=False),
+    target_file: str = typer.Option(..., "--file", help="Capsule file to minimize."),
+    repo: Path | None = typer.Option(
+        None,
+        "--repo",
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        help="Optional source repository used by the capsule.",
+    ),
+    output: Path | None = typer.Option(None, "--output", help="Output YAML path."),
+    max_checks: int = typer.Option(30, "--max-checks", min=1, max=500),
+    min_length: int = typer.Option(1, "--min-length", min=0),
+) -> None:
+    """Minimize one capsule file while preserving a verified failure."""
+    try:
+        spec = load_repro_spec(spec_path)
+    except (ValidationError, ValueError) as exc:
+        console.print(f"[red]INVALID[/red]\n{exc}")
+        raise typer.Exit(code=2) from exc
+
+    if target_file not in spec.files:
+        available = ", ".join(sorted(spec.files)) or "(none)"
+        console.print(f"[red]Unknown capsule file:[/red] {target_file}")
+        console.print(f"Available: {available}")
+        raise typer.Exit(code=2)
+
+    verifier = Verifier(DockerSandboxRunner(source_root=repo))
+    console.print(f"\n[bold]Baseline verification[/bold] {target_file}")
+    try:
+        baseline = verifier.verify(spec)
+    except DockerUnavailableError as exc:
+        console.print(f"[red]Docker unavailable:[/red] {exc}")
+        raise typer.Exit(code=3) from exc
+    except RuntimeError as exc:
+        console.print(f"[red]Execution failed:[/red] {exc}")
+        raise typer.Exit(code=4) from exc
+
+    if not baseline.reproduced:
+        console.print("[red]Refusing to minimize:[/red] baseline capsule is not verified.")
+        raise typer.Exit(code=1)
+
+    original = spec.files[target_file]
+
+    def still_reproduces(candidate: str) -> bool:
+        candidate_files = dict(spec.files)
+        candidate_files[target_file] = candidate
+        candidate_spec = spec.model_copy(update={"files": candidate_files})
+        return verifier.verify(candidate_spec).reproduced
+
+    try:
+        result = minimize_text(
+            original,
+            still_reproduces,
+            max_checks=max_checks,
+            min_length=min_length,
+        )
+    except RuntimeError as exc:
+        console.print(f"[red]Execution failed while minimizing:[/red] {exc}")
+        raise typer.Exit(code=4) from exc
+
+    minimized_files = dict(spec.files)
+    minimized_files[target_file] = result.minimized
+    minimized_spec = spec.model_copy(update={"files": minimized_files})
+    if output is None:
+        output = spec_path.with_name(f"{spec_path.stem}.min{spec_path.suffix}")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        yaml.safe_dump(
+            minimized_spec.model_dump(mode="json", by_alias=True),
+            sort_keys=False,
+            allow_unicode=True,
+        ),
+        encoding="utf-8",
+    )
+
+    console.print("\n[bold green]MINIMIZED[/bold green]")
+    console.print(f"Chars: {len(original)} → {len(result.minimized)}")
+    console.print(f"Removed: {result.removed_chars} ({result.reduction_ratio:.1%})")
+    console.print(f"Verifier checks: {result.checks}/{max_checks}")
+    console.print(f"Accepted reductions: {result.accepted_reductions}")
+    if result.exhausted_budget:
+        console.print("[yellow]Check budget exhausted; result may not be globally minimal.[/yellow]")
+    console.print(f"Output: {output}")
 
 
 @app.command("validate")

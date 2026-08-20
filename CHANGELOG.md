@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.0-alpha.5
+
+- Add deterministic testcase minimization for a selected file inside a verified `reproflow/v1` capsule.
+- Re-run the Docker sandbox and deterministic Verifier for every accepted minimization step; model output is never used as the minimization oracle.
+- Refuse minimization when the baseline capsule is not already verified.
+- Add bounded minimization controls with `--max-checks` and `--min-length`, and write a separate minimized capsule by default.
+- Add `reproflow doctor` for Python, Docker daemon, optional OpenAI package/key, and GitHub token readiness checks.
+- Add `--json` output to `reproflow inspect`, `reproflow context`, and `reproflow doctor` for scripts and future GitHub Actions.
+- Add unit tests for minimizer bounds/behavior and doctor readiness modeling.
+
 ## v0.1.0-alpha.4
 
 - Rank bounded repository context using deterministic relevance hints extracted from the untrusted Issue.

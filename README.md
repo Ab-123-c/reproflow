@@ -38,7 +38,7 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0-alpha.4` makes repository context issue-aware before the planner sees it:
+`v0.1.0-alpha.5` adds verified testcase minimization and automation-friendly diagnostics:
 
 - repository snapshots remain strictly bounded by file count and character budgets
 - project metadata stays structurally prioritized
@@ -85,6 +85,22 @@ Run and verify it:
 ```bash
 reproflow run examples/unicode-username/repro.yaml
 ```
+
+Check the local runtime:
+
+```bash
+reproflow doctor
+```
+
+Minimize a file in a verified capsule:
+
+```bash
+reproflow minimize examples/unicode-username/repro.yaml \
+  --file repro.py \
+  --max-checks 40
+```
+
+Every accepted reduction is verified again in Docker; the original capsule remains untouched by default.
 
 Run a capsule that depends on a source repository:
 
@@ -265,7 +281,7 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.0-alpha.4` 开始在 Planner 之前根据 Issue 对仓库上下文做受限、确定性的相关性排序：
+`v0.1.0-alpha.5` 新增经过 Verifier 约束的 testcase minimization，以及更适合自动化的诊断输出：
 
 - Repository snapshot 继续受文件数量和字符预算限制
 - `pyproject.toml` 等项目元数据仍保持结构优先级
