@@ -38,7 +38,7 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0-alpha.4` makes repository context issue-aware before the planner sees it:
+`v0.1.0-alpha.5` makes repository context issue-aware before the planner sees it:
 
 - repository snapshots remain strictly bounded by file count and character budgets
 - project metadata stays structurally prioritized
@@ -265,7 +265,7 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.0-alpha.4` 开始在 Planner 之前根据 Issue 对仓库上下文做受限、确定性的相关性排序：
+`v0.1.0-alpha.5` 开始在 Planner 之前根据 Issue 对仓库上下文做受限、确定性的相关性排序：
 
 - Repository snapshot 继续受文件数量和字符预算限制
 - `pyproject.toml` 等项目元数据仍保持结构优先级
