@@ -36,6 +36,14 @@
 - [x] `reproflow context` preview command
 - [x] planner integration using the same selector
 
+## v0.1.0-alpha.5 — verified testcase minimization
+
+- [x] bounded deterministic text minimizer
+- [x] capsule-file minimization using the normal Docker + Verifier oracle
+- [x] baseline verification before minimization
+- [x] runtime readiness command (`reproflow doctor`)
+- [x] JSON output for inspect/context/doctor
+
 ## v0.2.x — real maintainer inputs
 
 - [x] smarter repository context selection (first bounded heuristic in alpha.4)
@@ -44,6 +52,6 @@
 
 ## v0.3.x — maintainers' workflow
 
-- [ ] testcase minimization
+- [x] testcase minimization (first verified capsule-file minimizer in alpha.5)
 - [ ] regression pytest generation
 - [ ] GitHub Action
