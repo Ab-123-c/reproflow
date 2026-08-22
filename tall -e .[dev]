@@ -1,0 +1,16 @@
+ CHANGELOG.md                             | 10 [32m+++++++[m
+ README.md                                | 35 [32m+++++++++++[m[31m------------[m
+ RELEASE_NOTES.md                         | 67 [32m++++++++++++++++++[m[31m--------------------------[m
+ ROADMAP.md                               | 10 [32m++++++[m[31m-[m
+ docs/repro-spec.md                       | 20 [32m+++++++++++++[m
+ examples/planner-demo/repro.yaml         |  1 [32m+[m
+ examples/unicode-username/repro.min.yaml |  1 [32m+[m
+ examples/unicode-username/repro.yaml     |  1 [32m+[m
+ pyproject.toml                           |  2 [32m+[m[31m-[m
+ src/reproflow/__init__.py                |  2 [32m+[m[31m-[m
+ src/reproflow/agent/openai_provider.py   |  4 [32m+++[m
+ src/reproflow/capsule/schema.py          | 35 [32m+++++++++++++++++++++++[m
+ src/reproflow/verifier/verifier.py       | 77 [32m+++++++++++++++++++++++++++++++++++++++++++++[m[31m------[m
+ tests/unit/test_schema.py                | 22 [32m++++++++++++++[m[31m-[m
+ tests/unit/test_verifier.py              | 43 [32m++++++++++++++++++++++++++[m[31m--[m
+ 15 files changed, 258 insertions(+), 72 deletions(-)

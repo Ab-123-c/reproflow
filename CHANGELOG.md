@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.0-alpha.6
+
+- Harden failure targets so a generic `exception` or `crash` can no longer verify an unrelated non-zero exit.
+- Add `exception_class` matching for Python-style traceback identities.
+- Add `signal` matching for Linux/container crashes, including conventional `128 + signal` exit statuses.
+- Keep `nonzero_exit` as the explicit opt-in matcher when any failing command is intentionally sufficient.
+- Include the observed exception/signal in deterministic failure signatures.
+- Strengthen the OpenAI planner prompt to propose target-specific failure constraints.
+- Add failure-target documentation and unit coverage for false-positive rejection.
+
 ## v0.1.0-alpha.5
 
 - Add deterministic testcase minimization for a selected file inside a verified `reproflow/v1` capsule.

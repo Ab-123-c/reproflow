@@ -38,18 +38,18 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0-alpha.5` adds verified testcase minimization and automation-friendly diagnostics:
+`v0.1.0-alpha.6` hardens failure targets so unrelated experiment failures are less likely to be mistaken for the reported bug:
 
-- repository snapshots remain strictly bounded by file count and character budgets
-- project metadata stays structurally prioritized
-- bounded terms from the untrusted Issue can promote relevant Python source/test files by path and content matches
-- `.git`, virtual environments, caches, `.repro`, `.reproflow`, and `node_modules` remain excluded
-- selection is deterministic and never executes repository code
-- `reproflow context --repo ... --issue ...` previews exactly which files would be exposed to the planner
-- context preview requires neither an AI provider nor Docker
+- `exception` targets require an exception identity or distinctive stderr marker
+- `exception_class` can match the final Python exception type directly
+- `crash` targets require a signal, exact exit code, or distinctive output marker
+- `signal` understands Linux/container `128 + signal` statuses such as `139` for `SIGSEGV`
+- `nonzero_exit` remains the explicit broad matcher when any failing command is intentionally sufficient
 - deterministic Verifier remains the only component allowed to declare success
 
-The original deterministic `reproflow/v1` runtime remains usable without any AI provider.
+Existing evidence-first features remain available: GitHub Issue ingestion, bounded issue-aware repository context, repeated Docker verification, testcase minimization, and automation-friendly JSON diagnostics.
+
+See [`docs/failure-targets.md`](docs/failure-targets.md) for the hardened matching rules.
 
 ## Requirements
 
@@ -281,15 +281,16 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.0-alpha.5` 新增经过 Verifier 约束的 testcase minimization，以及更适合自动化的诊断输出：
+`v0.1.0-alpha.6` 强化 failure target，避免把与目标 Bug 无关的非零退出误判为成功复现：
 
-- Repository snapshot 继续受文件数量和字符预算限制
-- `pyproject.toml` 等项目元数据仍保持结构优先级
-- 从不可信 Issue 中提取的有限关键词，只能用于提升相关 Python 源码/测试文件的路径或内容匹配分数
-- `.git`、虚拟环境、缓存、`.repro`、`.reproflow` 和 `node_modules` 继续排除
-- 上下文选择过程不会执行仓库代码
-- 新增 `reproflow context --repo ... --issue ...`，可以在不调用模型、不启动 Docker 的情况下预览 Planner 会看到哪些文件
+- `exception` 必须提供异常类型或明确的 stderr 特征
+- 新增 `exception_class`，可以直接匹配最终 Python 异常类型
+- `crash` 必须提供 signal、精确 exit code 或明确的输出特征
+- 新增 `signal`，支持 Linux / 容器常见的 `128 + signal` 退出码，例如 `139 = SIGSEGV`
+- 如果“任意非零退出”本来就是目标，仍然可以显式使用 `nonzero_exit`
 - 是否复现成功仍然只能由 deterministic Verifier 判断
+
+GitHub Issue 输入、bounded repository context、重复 Docker 验证、testcase minimization 和 JSON 诊断输出继续保留。详细规则见 [`docs/failure-targets.md`](docs/failure-targets.md)。
 
 不使用任何 AI Provider 时，原来的 `reproflow/v1` runtime 仍然可以独立运行。
 

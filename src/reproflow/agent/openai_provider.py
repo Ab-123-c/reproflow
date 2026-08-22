@@ -70,6 +70,10 @@ Rules:
 - Do not access secrets, home directories, Docker sockets, or host paths.
 - The command runs from the repository root after deterministic package installation.
 - expected_failure must describe the TARGET bug, not merely any non-zero exit.
+- For exception failures, set exception_class when known (for example UnicodeEncodeError);
+  otherwise provide a distinctive stderr_contains marker.
+- For crash failures, set signal or an exact exit_code / distinctive output marker.
+  Never emit a generic crash target.
 - When the issue lacks enough information for a meaningful experiment, choose needs_information.
 - When prior evidence makes further attempts pointless, choose stop.
 

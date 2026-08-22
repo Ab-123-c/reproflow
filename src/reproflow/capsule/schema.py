@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -44,8 +45,42 @@ class RunSpec(StrictModel):
 class FailureExpectation(StrictModel):
     type: Literal["exception", "crash", "nonzero_exit", "timeout", "output_mismatch"]
     exit_code: int | None = None
+    exception_class: str | None = None
+    signal: int | None = Field(default=None, ge=1, le=64)
     stdout_contains: list[str] = Field(default_factory=list)
     stderr_contains: list[str] = Field(default_factory=list)
+
+    @field_validator("exception_class")
+    @classmethod
+    def valid_exception_class(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]*", value):
+            raise ValueError("exception_class must be a Python-style class name")
+        return value
+
+    @model_validator(mode="after")
+    def require_target_specific_failure(self) -> "FailureExpectation":
+        if self.exception_class is not None and self.type != "exception":
+            raise ValueError("exception_class is only valid for exception failures")
+        if self.signal is not None and self.type != "crash":
+            raise ValueError("signal is only valid for crash failures")
+
+        if self.type == "exception" and not (self.exception_class or self.stderr_contains):
+            raise ValueError(
+                "exception failures require exception_class or stderr_contains so unrelated "
+                "non-zero exits cannot be mistaken for the target bug"
+            )
+        if self.type == "crash" and not (
+            self.signal is not None
+            or self.exit_code is not None
+            or self.stdout_contains
+            or self.stderr_contains
+        ):
+            raise ValueError(
+                "crash failures require signal, exit_code, stdout_contains, or stderr_contains"
+            )
+        return self
 
 
 class VerificationPolicy(StrictModel):

@@ -16,6 +16,7 @@ run:
   timeout_seconds: 10
 failure:
   type: exception
+  exception_class: UnicodeEncodeError
   stderr_contains:
     - UnicodeEncodeError
 verification:

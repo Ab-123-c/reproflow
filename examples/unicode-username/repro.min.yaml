@@ -24,6 +24,7 @@ run:
   timeout_seconds: 10
 failure:
   type: exception
+  exception_class: UnicodeEncodeError
   exit_code: null
   stdout_contains: []
   stderr_contains:

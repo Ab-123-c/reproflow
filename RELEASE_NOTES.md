@@ -1,53 +1,40 @@
-# ReproFlow v0.1.0-alpha.5 — Verified Testcase Minimization
+# ReproFlow v0.1.0-alpha.6 — Failure Target Hardening
 
-The fifth alpha adds ReproFlow's first deterministic testcase minimizer. The important rule stays unchanged: a smaller testcase is accepted only when the normal sandbox + Verifier path proves that the target failure still reproduces.
+The sixth alpha makes the Verifier stricter about *which* failure was reproduced. A command that exits non-zero for an unrelated reason should not be accepted as evidence for a reported exception or crash.
 
 ## Highlights
 
-- `reproflow minimize` reduces one file embedded in a verified `reproflow/v1` capsule.
-- A baseline verification runs first; unverified capsules are refused.
-- Every candidate reduction is executed again through Docker and checked by the deterministic Verifier.
-- Minimization is bounded with `--max-checks` and `--min-length`.
-- The original capsule is not overwritten unless you explicitly choose the same output path.
-- `reproflow doctor` checks local runtime readiness before a reproduction run.
-- `reproflow inspect --json`, `reproflow context --json`, and `reproflow doctor --json` make the CLI easier to consume from scripts and CI.
+- `exception` targets now require a concrete discriminator: preferably `exception_class`, or a distinctive `stderr_contains` marker.
+- `crash` targets now require a signal, exact exit code, or distinctive output marker.
+- Linux/container signal matching understands conventional `128 + signal` statuses such as `139` for `SIGSEGV`.
+- `nonzero_exit` remains available as an explicit broad target.
+- Failure signatures include the observed exception or signal when available.
+- The AI planner is told to emit target-specific expectations instead of generic failures.
 
-## Minimize a verified capsule
+## Exception example
 
-```bash
-reproflow minimize examples/unicode-username/repro.yaml \
-  --file repro.py \
-  --max-checks 40
+```yaml
+failure:
+  type: exception
+  exception_class: UnicodeEncodeError
+  stderr_contains:
+    - UnicodeEncodeError
 ```
 
-The default output is `repro.min.yaml` beside the source capsule. Re-run it normally:
+An unrelated `ValueError`, import failure, or syntax error will now fail verification even though the process also exits non-zero.
 
-```bash
-reproflow run examples/unicode-username/repro.min.yaml
+## Crash example
+
+```yaml
+failure:
+  type: crash
+  signal: 11
 ```
 
-For capsules that depend on a source repository, pass the same repository to the minimizer:
+For Docker/Linux execution this matches the conventional `139` (`128 + 11`) exit status and records `SIGSEGV` in the stable failure signature.
 
-```bash
-reproflow minimize path/to/repro.yaml \
-  --file repro.py \
-  --repo .
-```
+## Compatibility note
 
-## Check a Codespace or workstation
+Existing capsules that already use `stderr_contains` for exceptions continue to validate. Capsules that used only `type: exception` or only `type: crash` must now state what identifies the target failure. Use `type: nonzero_exit` if broad non-zero matching was actually intended.
 
-```bash
-reproflow doctor
-reproflow doctor --json
-```
-
-`OPENAI_API_KEY` and a GitHub token are optional for the deterministic runtime. Docker is required for `run`, `reproduce`, and `minimize`.
-
-## Machine-readable inspection
-
-```bash
-reproflow inspect . --json
-reproflow context --repo . --issue issue.md --json
-```
-
-The JSON paths are intended for automation. They do not change the evidence model: context scores are only selection hints, and only the Verifier can declare a reproduction successful.
+See `docs/failure-targets.md` for the full matching model.

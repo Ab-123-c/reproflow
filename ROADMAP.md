@@ -44,10 +44,18 @@
 - [x] runtime readiness command (`reproflow doctor`)
 - [x] JSON output for inspect/context/doctor
 
+## v0.1.0-alpha.6 — failure-target hardening
+
+- [x] require target-specific exception/crash constraints
+- [x] explicit Python exception-class matching
+- [x] Linux/container signal matching
+- [x] false-positive rejection tests
+- [x] target-aware deterministic failure signatures
+
 ## v0.2.x — real maintainer inputs
 
 - [x] smarter repository context selection (first bounded heuristic in alpha.4)
-- [ ] failure-target hardening
+- [x] failure-target hardening (alpha.6)
 - [ ] case studies on external OSS repositories
 
 ## v0.3.x — maintainers' workflow

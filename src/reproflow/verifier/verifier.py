@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import signal as signal_module
 
 from reproflow.capsule.schema import FailureExpectation, ReproSpec
 from reproflow.sandbox.base import SandboxRunner
@@ -33,6 +34,8 @@ class Verifier:
 
 def match_failure(expectation: FailureExpectation, evidence: ExecutionEvidence) -> RunVerification:
     reasons: list[str] = []
+    actual_exception = _extract_exception_name(evidence.stderr)
+    actual_signal = _signal_from_exit_code(evidence.exit_code)
 
     if expectation.type == "timeout":
         matched_type = evidence.timed_out
@@ -49,6 +52,20 @@ def match_failure(expectation: FailureExpectation, evidence: ExecutionEvidence) 
     if expectation.exit_code is not None and evidence.exit_code != expectation.exit_code:
         reasons.append(f"expected exit code {expectation.exit_code}, got {evidence.exit_code}")
 
+    if expectation.exception_class is not None:
+        expected_name = expectation.exception_class.rsplit(".", 1)[-1]
+        if actual_exception != expected_name:
+            actual_label = actual_exception or "none detected"
+            reasons.append(
+                f"expected exception {expectation.exception_class}, got {actual_label}"
+            )
+
+    if expectation.signal is not None and actual_signal != expectation.signal:
+        reasons.append(
+            f"expected signal {_signal_label(expectation.signal)}, "
+            f"got {_signal_label(actual_signal) if actual_signal is not None else 'none detected'}"
+        )
+
     for token in expectation.stdout_contains:
         if token not in evidence.stdout:
             reasons.append(f"stdout missing expected text: {token!r}")
@@ -61,27 +78,69 @@ def match_failure(expectation: FailureExpectation, evidence: ExecutionEvidence) 
     return RunVerification(
         matched=matched,
         reasons=reasons,
-        signature=_signature(expectation, evidence) if matched else None,
+        signature=(
+            _signature(
+                expectation,
+                evidence,
+                actual_exception=actual_exception,
+                actual_signal=actual_signal,
+            )
+            if matched
+            else None
+        ),
         evidence=evidence,
     )
 
 
-def _signature(expectation: FailureExpectation, evidence: ExecutionEvidence) -> str:
-    exception_name = None
-    if expectation.type == "exception":
-        matches = re.findall(r"(?:^|\n)([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))(?::|\n|$)", evidence.stderr)
-        if matches:
-            exception_name = matches[-1]
+def _extract_exception_name(stderr: str) -> str | None:
+    matches = re.findall(
+        r"(?:^|\n)([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception|Warning))(?::|\n|$)",
+        stderr,
+    )
+    return matches[-1] if matches else None
 
+
+def _signal_from_exit_code(exit_code: int | None) -> int | None:
+    if exit_code is None or exit_code == 0:
+        return None
+    if exit_code < 0:
+        return -exit_code
+    if 129 <= exit_code <= 192:
+        return exit_code - 128
+    return None
+
+
+def _signal_label(number: int) -> str:
+    try:
+        return f"SIG{signal_module.Signals(number).name.removeprefix('SIG')} ({number})"
+    except ValueError:
+        return f"signal {number}"
+
+
+def _signature(
+    expectation: FailureExpectation,
+    evidence: ExecutionEvidence,
+    *,
+    actual_exception: str | None,
+    actual_signal: int | None,
+) -> str:
     normalized = "\n".join(
         [
             expectation.type,
-            exception_name or "",
+            actual_exception or "",
+            str(actual_signal or ""),
             str(evidence.exit_code),
+            expectation.exception_class or "",
+            str(expectation.signal or ""),
             "|".join(expectation.stdout_contains),
             "|".join(expectation.stderr_contains),
         ]
     )
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]
-    human = exception_name or expectation.type
+    if actual_exception:
+        human = actual_exception
+    elif actual_signal is not None:
+        human = _signal_label(actual_signal).split(" ", 1)[0]
+    else:
+        human = expectation.type
     return f"{human}:{digest}"
