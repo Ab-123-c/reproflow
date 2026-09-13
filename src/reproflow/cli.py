@@ -24,6 +24,7 @@ from reproflow.report import (
     load_verification_payload,
     load_verification_result,
     render_verification_markdown,
+    validate_evidence_payload,
     write_verification_report,
 )
 from reproflow.badge import write_badge
@@ -34,6 +35,29 @@ from reproflow.verifier.verifier import Verifier
 
 app = typer.Typer(name="reproflow", help="Turn bug reports into verified reproductions.")
 console = Console()
+
+
+def _version_callback(value: bool) -> None:
+    """Print the package version and stop before dispatching a subcommand."""
+    if value:
+        typer.echo(f"reproflow {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
+        help="Show the installed ReproFlow version and exit.",
+    ),
+) -> None:
+    """Turn bug reports into verified reproductions."""
+    # The callback exists so ``reproflow --version`` works even when no command
+    # is supplied.  Typer invokes the version callback before command dispatch.
+    del version
 
 
 @app.command()
@@ -349,8 +373,9 @@ def run_command(
             spec=spec,
         )
     if as_json:
-        payload = result.model_dump(mode="json")
-        payload["status"] = "VERIFIED" if result.reproduced else "NOT_REPRODUCED"
+        from reproflow.report import verification_payload
+
+        payload = verification_payload(result, spec=spec)
         payload["spec"] = str(spec_path)
         _print_json(payload, ensure_ascii=False)
         raise typer.Exit(code=0 if result.reproduced else 1)
@@ -403,15 +428,38 @@ def evidence_command(
         help="Evidence directory or verification.json produced by ReproFlow.",
     ),
     as_json: bool = typer.Option(False, "--json", help="Emit the standardized evidence JSON."),
+    check: bool = typer.Option(False, "--check", help="Validate schema and consistency for CI."),
 ) -> None:
     """Inspect a standardized reproflow/evidence/v1 result."""
+    path = evidence / "verification.json" if evidence.is_dir() else evidence
+    try:
+        payload = load_verification_payload(path)
+        errors = validate_evidence_payload(payload)
+        if check:
+            result = {"valid": not errors, "path": str(path), "errors": errors}
+            _print_json(result, ensure_ascii=False, indent=2)
+            if errors:
+                raise typer.Exit(code=2)
+            return
+    except ValueError as exc:
+        if check:
+            _print_json({"valid": False, "path": str(path), "errors": [str(exc)]})
+            raise typer.Exit(code=2) from exc
+        raise
     report_command(evidence, as_json)
 
 
 @app.command("badge")
 def badge_command(
-    evidence: Path = typer.Argument(..., exists=True, help="Evidence directory or verification.json."),
-    output: Path = typer.Option(Path("reproflow-badge.svg"), "--output", "-o", help="SVG output path."),
+    evidence: Path = typer.Argument(
+        ..., exists=True, help="Evidence directory or verification.json."
+    ),
+    output: Path = typer.Option(
+        Path("reproflow-badge.svg"), "--output", "-o", help="SVG output path."
+    ),
+    strict: bool = typer.Option(
+        False, "--strict", help="Exit 1 when evidence is not verified."
+    ),
 ) -> None:
     """Generate a small SVG badge from verification evidence."""
     path = evidence / "verification.json" if evidence.is_dir() else evidence
@@ -422,12 +470,13 @@ def badge_command(
         console.print(f"[red]Badge error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
     console.print(f"Wrote {output}")
-    raise typer.Exit(code=0 if result.reproduced else 1)
+    raise typer.Exit(code=0 if result.reproduced or not strict else 1)
 
 
 @app.command("list")
 def list_command(
     root: Path = typer.Argument(Path("."), exists=True, file_okay=False, dir_okay=True),
+    strict: bool = typer.Option(False, "--strict", help="Exit 1 when any discovered capsule is invalid."),
     as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
 ) -> None:
     """List reproduction capsules discovered below a directory."""
@@ -450,6 +499,8 @@ def list_command(
         )
     if as_json:
         _print_json(capsules, ensure_ascii=False, indent=2)
+        if strict and any(not item["valid"] for item in capsules):
+            raise typer.Exit(code=1)
         return
     if not capsules:
         console.print("No capsules found.")
@@ -470,6 +521,8 @@ def list_command(
                 str(item["path"]),
             )
     console.print(table)
+    if strict and any(not item["valid"] for item in capsules):
+        raise typer.Exit(code=1)
 
 
 @app.command("verify-all")
@@ -484,6 +537,11 @@ def verify_all_command(
         help="Source repository copied into each sandbox.",
     ),
     stop_on_failure: bool = typer.Option(False, "--stop-on-failure"),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        help="Optional directory for one evidence folder per capsule.",
+    ),
     as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
 ) -> None:
     """Verify every capsule below a directory and return a CI-friendly summary."""
@@ -495,8 +553,19 @@ def verify_all_command(
             entry["id"] = spec.metadata.id
             entry["title"] = spec.metadata.title
             result = Verifier(DockerSandboxRunner(source_root=repo)).verify(spec)
+            if output is not None:
+                evidence_dir = output / _slug(spec.metadata.id)
+                write_verification_report(
+                    result,
+                    evidence_dir,
+                    title=spec.metadata.title,
+                    spec_path=path,
+                    spec=spec,
+                )
+                entry["evidence"] = str(evidence_dir)
             entry.update(
                 {
+                    "format": "reproflow/evidence/v1",
                     "status": "VERIFIED" if result.reproduced else "NOT_REPRODUCED",
                     "successful_runs": result.successful_runs,
                     "total_runs": result.total_runs,
@@ -534,6 +603,65 @@ def verify_all_command(
             console.print(f"{status:18} {entry['path']}")
         console.print(f"\nPassed: {len(entries) - len(failed)}/{len(entries)}")
     if failed:
+        raise typer.Exit(code=1)
+
+
+@app.command("matrix")
+def matrix_command(
+    spec_path: Path = typer.Argument(..., exists=True, file_okay=True, dir_okay=False),
+    image: list[str] = typer.Option([], "--image", help="Docker image to test (repeatable)."),
+    repo: Path | None = typer.Option(None, "--repo", exists=True, file_okay=False, dir_okay=True),
+    output: Path | None = typer.Option(None, "--output", help="Write the matrix JSON document."),
+    as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+) -> None:
+    """Verify one capsule across a small Docker environment matrix."""
+    if not image:
+        console.print("[red]At least one --image is required.[/red]")
+        raise typer.Exit(code=2)
+    try:
+        spec = load_repro_spec(spec_path)
+    except (ValidationError, ValueError) as exc:
+        console.print(f"[red]INVALID[/red]\n{exc}")
+        raise typer.Exit(code=2) from exc
+    rows: list[dict[str, object]] = []
+    for image_name in image:
+        candidate_environment = spec.environment.model_copy(update={"image": image_name})
+        candidate = spec.model_copy(update={"environment": candidate_environment})
+        row: dict[str, object] = {"image": image_name}
+        try:
+            result = Verifier(DockerSandboxRunner(source_root=repo)).verify(candidate)
+            row.update({
+                "status": "VERIFIED" if result.reproduced else "NOT_REPRODUCED",
+                "successful_runs": result.successful_runs,
+                "total_runs": result.total_runs,
+                "stable_signature": result.stable_signature,
+                "environment_hashes": sorted({r.evidence.environment_hash for r in result.runs}),
+            })
+        except DockerUnavailableError as exc:
+            row.update({"status": "DOCKER_UNAVAILABLE", "error": str(exc)})
+        except RuntimeError as exc:
+            row.update({"status": "EXECUTION_ERROR", "error": str(exc)})
+        rows.append(row)
+    payload = {"format": "reproflow/matrix/v1", "spec": str(spec_path), "results": rows}
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+    if as_json:
+        _print_json(payload, ensure_ascii=False, indent=2)
+    else:
+        table = Table(title="ReproFlow environment matrix")
+        table.add_column("Image")
+        table.add_column("Status")
+        table.add_column("Repeatability")
+        for row in rows:
+            repeatability = f"{row.get('successful_runs', '-')}/{row.get('total_runs', '-')}"
+            table.add_row(str(row["image"]), str(row["status"]), repeatability)
+        console.print(table)
+        if output is not None:
+            console.print(f"Evidence: {output}")
+    if any(row.get("status") != "VERIFIED" for row in rows):
         raise typer.Exit(code=1)
 
 

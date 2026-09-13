@@ -38,7 +38,7 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.2` hardens failure targets so unrelated experiment failures are less likely to be mistaken for the reported bug. The current tree also includes maintainer and CI workflows:
+`v0.1.3` adds release-readiness checks around the standardized evidence contract. The current tree also includes maintainer and CI workflows:
 
 - `exception` targets require an exception identity or distinctive stderr marker
 - `exception_class` can match the final Python exception type directly
@@ -48,6 +48,8 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 - deterministic Verifier remains the only component allowed to declare success
 - `init`, `list`, and `verify-all` commands for day-to-day capsule workflows
 - machine-readable run results, Markdown evidence reports, and pytest regression generation
+- `reproflow evidence --check` validates evidence format and aggregate consistency for CI
+- `reproflow --version` reports the installed package version
 
 Evidence is exported as the versioned `reproflow/evidence/v1` JSON contract. Use `reproflow evidence` to inspect it and `reproflow badge` to generate an embeddable SVG status badge.
 
@@ -71,6 +73,12 @@ pip install -e ".[dev]"
 ```
 
 ## Quick start
+
+Show the installed version (useful when checking a CI or Codespaces environment):
+
+```bash
+reproflow --version
+```
 
 Inspect a Python repository:
 
@@ -125,6 +133,15 @@ Save machine-readable evidence and a Markdown report from a run:
 reproflow run repro.yaml --output .repro/my-bug
 reproflow report .repro/my-bug
 ```
+
+Validate a saved evidence document before publishing it from CI:
+
+```bash
+reproflow evidence .repro/my-bug --check
+```
+
+The command emits a JSON result and exits non-zero when the document is malformed or its
+repeatability, execution, or status fields disagree.
 
 After a capsule is verified, generate a reviewable pytest regression test:
 
@@ -188,7 +205,7 @@ See [`docs/github-issues.md`](docs/github-issues.md) for the GitHub input trust 
 
 See [`docs/ci.md`](docs/ci.md) for batch verification, JSON output, and CI artifact handling.
 
-### Preview repository context — available in v0.1.2
+### Preview repository context — available in v0.1.3
 
 Before spending model tokens or starting Docker, inspect the bounded repository snapshot that ReproFlow would expose to the planner:
 
@@ -321,7 +338,7 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.2` 强化 failure target，避免把与目标 Bug 无关的非零退出误判为成功复现：
+`v0.1.3` 在标准化证据格式之上增加发布前校验，并提供统一版本查询：
 
 - `exception` 必须提供异常类型或明确的 stderr 特征
 - 新增 `exception_class`，可以直接匹配最终 Python 异常类型
@@ -329,6 +346,8 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 - 新增 `signal`，支持 Linux / 容器常见的 `128 + signal` 退出码，例如 `139 = SIGSEGV`
 - 如果“任意非零退出”本来就是目标，仍然可以显式使用 `nonzero_exit`
 - 是否复现成功仍然只能由 deterministic Verifier 判断
+- `reproflow evidence --check` 可在 CI 中校验证据格式和汇总字段一致性
+- `reproflow --version` 输出当前安装的 ReproFlow 版本
 
 GitHub Issue 输入、bounded repository context、重复 Docker 验证、testcase minimization 和 JSON 诊断输出继续保留。详细规则见 [`docs/failure-targets.md`](docs/failure-targets.md)。
 
@@ -350,6 +369,12 @@ pip install -e ".[dev]"
 ```
 
 ## 快速开始
+
+查看当前安装的版本（也可用于检查 Codespaces 或 CI 环境）：
+
+```bash
+reproflow --version
+```
 
 识别 Python 仓库：
 
@@ -416,7 +441,7 @@ Issue 正文、评论、仓库内容和实验输出都按不可信数据处理�
 
 更多细节见 [`docs/github-issues.md`](docs/github-issues.md)。
 
-### v0.1.2：先预览 Planner 上下文
+### v0.1.3：先预览 Planner 上下文
 
 在消耗模型请求或启动 Docker 之前，可以先看 ReproFlow 最终会选哪些仓库文件：
 

@@ -137,3 +137,46 @@ def load_verification_payload(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("Invalid verification JSON: expected an object")
     return payload
+
+
+def validate_evidence_payload(payload: dict[str, Any]) -> list[str]:
+    """Return consistency errors for a ``reproflow/evidence/v1`` document."""
+    errors: list[str] = []
+    if payload.get("format") != "reproflow/evidence/v1":
+        errors.append("format must be reproflow/evidence/v1")
+    status = payload.get("status")
+    if status not in {"verified", "not_reproduced"}:
+        errors.append("status must be verified or not_reproduced")
+    reproduced = payload.get("reproduced")
+    if not isinstance(reproduced, bool):
+        errors.append("reproduced must be a boolean")
+    elif (status == "verified") != reproduced:
+        errors.append("status and reproduced disagree")
+    successful = payload.get("successful_runs")
+    total = payload.get("total_runs")
+    if not isinstance(successful, int) or not isinstance(total, int):
+        errors.append("successful_runs and total_runs must be integers")
+    elif successful < 0 or total < 1 or successful > total:
+        errors.append("run counts must satisfy 0 <= successful_runs <= total_runs")
+    runs = payload.get("runs")
+    if not isinstance(runs, list):
+        errors.append("runs must be an array")
+    elif isinstance(total, int) and len(runs) != total:
+        errors.append("runs length must equal total_runs")
+    repetitions = payload.get("repetitions")
+    if not isinstance(repetitions, dict):
+        errors.append("repetitions must be an object")
+    else:
+        if repetitions.get("successful") != successful:
+            errors.append("repetitions.successful must equal successful_runs")
+        if repetitions.get("total") != total:
+            errors.append("repetitions.total must equal total_runs")
+    execution = payload.get("execution")
+    if not isinstance(execution, dict):
+        errors.append("execution must be an object")
+    else:
+        if execution.get("runs") != total:
+            errors.append("execution.runs must equal total_runs")
+        if execution.get("matched_runs") != successful:
+            errors.append("execution.matched_runs must equal successful_runs")
+    return errors

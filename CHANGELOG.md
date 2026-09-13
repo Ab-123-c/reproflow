@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.3
+
+- Add `reproflow evidence --check` to validate `reproflow/evidence/v1` documents and detect inconsistent status, repetition, and execution summaries.
+- Return a machine-readable validation result and a non-zero exit code when evidence is invalid, making the check suitable for CI and release pipelines.
+- Add global `reproflow --version` output so scripts and issue workflows can report the installed runtime version.
+- Add `reproflow matrix` to compare a capsule across multiple Docker images.
+- Add strict evidence output to `run --json`, per-capsule evidence export for `verify-all`, and `list --strict` for CI gates.
+- Add `python -m reproflow` entrypoint and bound setup/run command sizes to keep generated capsules safer.
+- Keep the 0.1.2 evidence export, SVG badge, and optional GitHub Issue workflow available as the release baseline.
+
 ## v0.1.2
 
 - Standardize persisted verification output as `reproflow/evidence/v1` with status, repetition, execution, failure, and environment fields.

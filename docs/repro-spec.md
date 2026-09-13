@@ -37,7 +37,7 @@ added in future versions without changing the `reproflow/v1` capsule schema.
 
 ## Failure targets
 
-A failure target should be specific enough to distinguish the reported bug from an unrelated experiment failure. In v0.1.2, `exception` and `crash` targets are therefore validated more strictly:
+A failure target should be specific enough to distinguish the reported bug from an unrelated experiment failure. In v0.1.3, `exception` and `crash` targets are therefore validated more strictly:
 
 ```yaml
 failure:

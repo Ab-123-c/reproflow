@@ -5,6 +5,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from reproflow import __version__
 from reproflow.cli import app
 from reproflow.capsule.loader import load_repro_spec
 from reproflow.report import write_verification_report
@@ -13,6 +14,12 @@ from reproflow.verifier.models import RunVerification, VerificationResult
 
 
 runner = CliRunner()
+
+
+def test_version_option_reports_package_version() -> None:
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0, result.stdout
+    assert result.stdout.strip() == f"reproflow {__version__}"
 
 
 def test_init_creates_valid_capsule(tmp_path: Path) -> None:
@@ -77,9 +84,26 @@ def test_evidence_json_preserves_v1_fields_and_badge(tmp_path: Path) -> None:
     payload = json.loads((tmp_path / "verification.json").read_text())
     assert payload["format"] == "reproflow/evidence/v1"
     assert payload["status"] == "verified"
+    checked = runner.invoke(app, ["evidence", str(tmp_path), "--check"])
+    assert checked.exit_code == 0
+    assert json.loads(checked.stdout)["valid"] is True
     result = runner.invoke(app, ["evidence", str(tmp_path), "--json"])
     assert result.exit_code == 0
     assert json.loads(result.stdout)["format"] == "reproflow/evidence/v1"
     badge = runner.invoke(app, ["badge", str(tmp_path), "-o", str(tmp_path / "badge.svg")])
     assert badge.exit_code == 0
     assert "Verified" in (tmp_path / "badge.svg").read_text()
+
+
+def test_evidence_check_rejects_inconsistent_payload(tmp_path: Path) -> None:
+    path = tmp_path / "verification.json"
+    path.write_text(json.dumps({"format": "reproflow/evidence/v1", "status": "verified"}))
+    result = runner.invoke(app, ["evidence", str(path), "--check"])
+    assert result.exit_code == 2
+    assert json.loads(result.stdout)["valid"] is False
+
+
+def test_matrix_requires_images(tmp_path: Path) -> None:
+    spec = tmp_path / "repro.yaml"
+    result = runner.invoke(app, ["matrix", str(spec), "--json"])
+    assert result.exit_code == 2

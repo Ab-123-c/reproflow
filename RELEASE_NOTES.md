@@ -1,13 +1,23 @@
-# ReproFlow v0.1.2 — Evidence workflow release
+# ReproFlow v0.1.3 — Evidence validation release
 
-This release standardizes verification evidence and adds GitHub Issue automation. Capsules can be
-scaffolded, discovered, batch-verified, exported as stable JSON, and converted into reviewable pytest
-regression tests. Each verification can also produce a Markdown evidence report and an SVG badge.
+This release adds a deterministic validation gate for persisted verification evidence and a global
+version query for scripts and CI. Capsules can be scaffolded, discovered, batch-verified, exported
+as stable JSON, and converted into reviewable pytest regression tests. Each verification can also
+produce a Markdown evidence report and an SVG badge.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the complete list of changes.
 
 
-## 0.1.2 highlights
+## 0.1.3 highlights
+
+- Validate `reproflow/evidence/v1` documents with `reproflow evidence --check`.
+- Detect malformed payloads and inconsistent status, repetition, or execution summaries.
+- Emit a JSON validation result and a non-zero exit code for CI or release gates.
+- Print the installed runtime version with `reproflow --version`.
+- Compare explicit Docker images with `reproflow matrix` and export per-capsule evidence from `verify-all --output`.
+- Use `list --strict` in CI and invoke ReproFlow with `python -m reproflow` when a console script is unavailable.
+
+## 0.1.2 baseline
 
 - Persist `reproflow/evidence/v1` evidence with repeatability, execution, failure, and environment details.
 - Inspect saved evidence with `reproflow evidence` and generate a badge with `reproflow badge`.

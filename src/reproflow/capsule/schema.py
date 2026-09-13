@@ -75,6 +75,10 @@ class Setup(StrictModel):
     def non_empty_commands(cls, value: list[str]) -> list[str]:
         if any(not command.strip() for command in value):
             raise ValueError("setup commands cannot be empty")
+        if any("\x00" in command for command in value):
+            raise ValueError("setup commands cannot contain NUL bytes")
+        if any(len(command) > 4_000 for command in value):
+            raise ValueError("setup commands must be at most 4000 characters")
         return value
 
 
@@ -89,6 +93,8 @@ class RunSpec(StrictModel):
             raise ValueError("run command cannot be empty")
         if "\x00" in value:
             raise ValueError("run command cannot contain a NUL byte")
+        if len(value) > 10_000:
+            raise ValueError("run command must be at most 10000 characters")
         return value
 
 

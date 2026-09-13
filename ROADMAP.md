@@ -1,5 +1,12 @@
 # Roadmap
 
+## v0.1.3 — evidence validation and release tooling
+
+- [x] `reproflow evidence --check` consistency gate for persisted evidence
+- [x] machine-readable validation output and CI-friendly exit status
+- [x] global `reproflow --version` command
+- [x] retain the v0.1.2 evidence, badge, and GitHub Issue automation workflow
+
 ## v0.1.2 — evidence and issue automation
 
 - [x] versioned `reproflow/evidence/v1` JSON output
