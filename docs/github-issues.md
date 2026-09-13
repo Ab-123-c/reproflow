@@ -1,6 +1,6 @@
 # GitHub Issue input
 
-`v0.1.0` lets `reproflow reproduce` accept either a local Markdown/text file or a GitHub Issue URL.
+`v0.1.1` lets `reproflow reproduce` accept either a local Markdown/text file or a GitHub Issue URL.
 
 ```bash
 reproflow reproduce \

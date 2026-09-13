@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.1
+
+- Synchronize the package, CLI, documentation, and GitHub API user-agent version to `0.1.1`.
+- Prepare the stable release and pre-release workflow for GitHub publishing.
+
 ## v0.1.0
 
 - Add `reproflow init` to scaffold a valid starter capsule.

@@ -38,7 +38,7 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0` hardens failure targets so unrelated experiment failures are less likely to be mistaken for the reported bug. The current tree also includes maintainer and CI workflows:
+`v0.1.1` hardens failure targets so unrelated experiment failures are less likely to be mistaken for the reported bug. The current tree also includes maintainer and CI workflows:
 
 - `exception` targets require an exception identity or distinctive stderr marker
 - `exception_class` can match the final Python exception type directly
@@ -186,7 +186,7 @@ See [`docs/github-issues.md`](docs/github-issues.md) for the GitHub input trust 
 
 See [`docs/ci.md`](docs/ci.md) for batch verification, JSON output, and CI artifact handling.
 
-### Preview repository context — available in v0.1.0
+### Preview repository context — available in v0.1.1
 
 Before spending model tokens or starting Docker, inspect the bounded repository snapshot that ReproFlow would expose to the planner:
 
@@ -319,7 +319,7 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.0` 强化 failure target，避免把与目标 Bug 无关的非零退出误判为成功复现：
+`v0.1.1` 强化 failure target，避免把与目标 Bug 无关的非零退出误判为成功复现：
 
 - `exception` 必须提供异常类型或明确的 stderr 特征
 - 新增 `exception_class`，可以直接匹配最终 Python 异常类型
@@ -414,7 +414,7 @@ Issue 正文、评论、仓库内容和实验输出都按不可信数据处理�
 
 更多细节见 [`docs/github-issues.md`](docs/github-issues.md)。
 
-### v0.1.0：先预览 Planner 上下文
+### v0.1.1：先预览 Planner 上下文
 
 在消耗模型请求或启动 Docker 之前，可以先看 ReproFlow 最终会选哪些仓库文件：
 

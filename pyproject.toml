@@ -1,6 +1,6 @@
 [project]
 name = "reproflow"
-version = "0.1.0"
+version = "0.1.1"
 description = "Turn bug reports into verified reproductions."
 readme = "README.md"
 requires-python = ">=3.11"

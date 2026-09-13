@@ -29,7 +29,7 @@ The runtime, not an LLM, decides whether the reproduction is verified.
 
 ## Failure targets
 
-A failure target should be specific enough to distinguish the reported bug from an unrelated experiment failure. In v0.1.0, `exception` and `crash` targets are therefore validated more strictly:
+A failure target should be specific enough to distinguish the reported bug from an unrelated experiment failure. In v0.1.1, `exception` and `crash` targets are therefore validated more strictly:
 
 ```yaml
 failure:

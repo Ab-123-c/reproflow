@@ -2,7 +2,7 @@
 
 ReproFlow verifies a **target failure**, not merely a failing command.
 
-`reproflow/v1` keeps `nonzero_exit` as an explicit broad matcher, while v0.1.0 hardens the two failure types that are most likely to produce false positives:
+`reproflow/v1` keeps `nonzero_exit` as an explicit broad matcher, while v0.1.1 hardens the two failure types that are most likely to produce false positives:
 
 - `exception` must include `exception_class` or at least one `stderr_contains` marker.
 - `crash` must include `signal`, `exit_code`, or a distinctive stdout/stderr marker.
