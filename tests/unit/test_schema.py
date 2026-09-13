@@ -45,3 +45,30 @@ def test_crash_failure_requires_target_discriminator() -> None:
 def test_signal_is_only_valid_for_crash() -> None:
     with pytest.raises(ValidationError, match="signal is only valid"):
         FailureExpectation(type="nonzero_exit", signal=11)
+
+
+def test_output_mismatch_requires_comparison_rule() -> None:
+    with pytest.raises(ValidationError, match="output_mismatch failures require"):
+        FailureExpectation(type="output_mismatch")
+
+
+def test_capsule_rejects_unsafe_file_paths() -> None:
+    data = _base()
+    data["files"] = {"../escape.py": "pass"}
+    with pytest.raises(ValidationError, match="unsafe capsule file path"):
+        ReproSpec.model_validate(data)
+
+
+@pytest.mark.parametrize("path", [".", "repro.py/", "a\\b.py"])
+def test_capsule_rejects_directory_or_windows_paths(path: str) -> None:
+    data = _base()
+    data["files"] = {path: "pass"}
+    with pytest.raises(ValidationError, match="unsafe capsule file path"):
+        ReproSpec.model_validate(data)
+
+
+def test_environment_variables_are_supported() -> None:
+    data = _base()
+    data["environment"] = {"variables": {"LC_ALL": "C.UTF-8"}}
+    spec = ReproSpec.model_validate(data)
+    assert spec.environment.variables["LC_ALL"] == "C.UTF-8"

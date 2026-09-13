@@ -1,6 +1,6 @@
 # Bounded agent loop
 
-ReproFlow alpha.2 separates exploration from proof:
+ReproFlow v0.1.0 separates exploration from proof:
 
 ```text
 untrusted issue.md

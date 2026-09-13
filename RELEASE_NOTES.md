@@ -1,4 +1,12 @@
-# ReproFlow v0.1.0-alpha.6 — Failure Target Hardening
+# ReproFlow v0.1.0 — Maintainer workflow and CI readiness
+
+This iteration turns the alpha runtime into a practical maintainer workflow. Capsules can be
+scaffolded, discovered, batch-verified, exported as stable JSON, and converted into reviewable
+pytest regression tests. Each verification can also produce a Markdown evidence report.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the complete list of changes.
+
+## Failure Target Hardening
 
 The sixth alpha makes the Verifier stricter about *which* failure was reproduced. A command that exits non-zero for an unrelated reason should not be accepted as evidence for a reported exception or crash.
 

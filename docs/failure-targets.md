@@ -2,7 +2,7 @@
 
 ReproFlow verifies a **target failure**, not merely a failing command.
 
-`reproflow/v1` keeps `nonzero_exit` as an explicit broad matcher, but alpha.6 hardens the two failure types that are most likely to produce false positives:
+`reproflow/v1` keeps `nonzero_exit` as an explicit broad matcher, while v0.1.0 hardens the two failure types that are most likely to produce false positives:
 
 - `exception` must include `exception_class` or at least one `stderr_contains` marker.
 - `crash` must include `signal`, `exit_code`, or a distinctive stdout/stderr marker.
@@ -55,3 +55,18 @@ That keeps broad matching available without silently treating a generic `excepti
 ## Why this matters
 
 A generated experiment can fail for unrelated reasons: import errors, syntax errors, missing fixtures, packaging mistakes, or resource limits. Those failures are evidence that the experiment failed, but they are not automatically evidence that the reported bug reproduced.
+
+## Output mismatches
+
+Some regressions do not crash; they return successfully with incorrect output. Use an
+`output_mismatch` target to express that contract:
+
+```yaml
+failure:
+  type: output_mismatch
+  stdout_equals: "expected stable output\n"
+```
+
+The target matches only when the command exits with code `0` and the observed output differs
+from the declared value. `stdout_not_contains` and `stderr_not_contains` are useful when a
+specific leaked or malformed value must be absent.

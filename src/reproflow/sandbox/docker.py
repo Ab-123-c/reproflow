@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +16,9 @@ from .models import ExecutionEvidence
 
 class DockerUnavailableError(RuntimeError):
     pass
+
+
+MAX_CAPTURE_CHARS = 1_000_000
 
 
 class DockerSandboxRunner:
@@ -46,6 +51,8 @@ class DockerSandboxRunner:
         return self.run_many(spec, 1)[0]
 
     def run_many(self, spec: ReproSpec, repetitions: int) -> list[ExecutionEvidence]:
+        if repetitions < 1:
+            raise ValueError("repetitions must be at least 1")
         self.check_available()
         with tempfile.TemporaryDirectory(prefix="reproflow-") as temp:
             root = Path(temp)
@@ -53,7 +60,7 @@ class DockerSandboxRunner:
                 self._copy_source_tree(self.source_root, root)
             self._write_capsule_files(root, spec.files)
             image = self._build_image(root, spec)
-            environment_hash = self._image_hash(image)
+            environment_hash = _environment_hash(self._image_hash(image), spec)
             try:
                 return [self._run_image(image, spec, environment_hash) for _ in range(repetitions)]
             finally:
@@ -63,8 +70,6 @@ class DockerSandboxRunner:
                     text=True,
                     check=False,
                 )
-
-
     def _copy_source_tree(self, source: Path, destination: Path) -> None:
         if not source.is_dir():
             raise ValueError(f"Source repository does not exist: {source}")
@@ -139,6 +144,7 @@ class DockerSandboxRunner:
             self.docker_bin,
             "run",
             "--rm",
+            "--init",
             "--network",
             "none",
             "--memory",
@@ -154,11 +160,17 @@ class DockerSandboxRunner:
             "no-new-privileges",
             "--cap-drop",
             "ALL",
-            image,
-            "/bin/sh",
-            "-lc",
-            spec.run.command,
         ]
+        for key, value in sorted(spec.environment.variables.items()):
+            command.extend(["--env", f"{key}={value}"])
+        command.extend(
+            [
+                image,
+                "/bin/sh",
+                "-lc",
+                spec.run.command,
+            ]
+        )
         start = time.monotonic()
         try:
             result = subprocess.run(
@@ -182,8 +194,8 @@ class DockerSandboxRunner:
         return ExecutionEvidence(
             command=spec.run.command,
             exit_code=exit_code,
-            stdout=stdout,
-            stderr=stderr,
+            stdout=_bounded_output(stdout),
+            stderr=_bounded_output(stderr),
             duration_ms=duration_ms,
             timed_out=timed_out,
             environment_hash=environment_hash,
@@ -196,3 +208,18 @@ def _to_text(value: str | bytes | None) -> str:
     if isinstance(value, bytes):
         return value.decode("utf-8", errors="replace")
     return value
+
+
+def _bounded_output(value: str, limit: int = MAX_CAPTURE_CHARS) -> str:
+    if len(value) <= limit:
+        return value
+    return value[:limit].rstrip() + "\n... [output truncated by ReproFlow]\n"
+
+
+def _environment_hash(image_hash: str, spec: ReproSpec) -> str:
+    """Identify the effective runtime, including declared process variables."""
+    if not spec.environment.variables:
+        return image_hash
+    payload = json.dumps(spec.environment.variables, sort_keys=True, ensure_ascii=False)
+    digest = hashlib.sha256(f"{image_hash}\n{payload}".encode("utf-8")).hexdigest()[:16]
+    return f"{image_hash}:{digest}"

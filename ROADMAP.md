@@ -61,5 +61,7 @@
 ## v0.3.x — maintainers' workflow
 
 - [x] testcase minimization (first verified capsule-file minimizer in alpha.5)
-- [ ] regression pytest generation
-- [ ] GitHub Action
+- [x] regression pytest generation
+- [x] CI-friendly JSON evidence and Markdown reports
+- [x] capsule discovery and batch verification
+- [x] GitHub Action

@@ -65,3 +65,15 @@ def test_wrong_crash_signal_does_not_match() -> None:
 def test_nonzero_exit_remains_explicitly_broad() -> None:
     expected = FailureExpectation(type="nonzero_exit")
     assert match_failure(expected, evidence(exit_code=7, stderr="anything\n")).matched is True
+
+
+def test_output_mismatch_matches_wrong_successful_output() -> None:
+    expected = FailureExpectation(type="output_mismatch", stdout_equals="expected\n")
+    result = match_failure(expected, evidence(exit_code=0, stderr="", stdout="actual\n"))
+    assert result.matched is True
+
+
+def test_output_mismatch_rejects_expected_output() -> None:
+    expected = FailureExpectation(type="output_mismatch", stdout_equals="expected\n")
+    result = match_failure(expected, evidence(exit_code=0, stderr="", stdout="expected\n"))
+    assert result.matched is False

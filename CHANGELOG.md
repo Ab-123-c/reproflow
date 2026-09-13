@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.0
+
+- Add `reproflow init` to scaffold a valid starter capsule.
+- Add `reproflow list` and `reproflow verify-all` for capsule discovery and CI batches.
+- Add `--json` output to `validate`, `run`, and `reproduce`.
+- Persist `verification.json` and `report.md` evidence and add `reproflow report`.
+- Add `reproflow generate-regression` for reviewable pytest regression tests.
+- Add environment variables to capsule environments with safe key validation.
+- Add explicit `output_mismatch` matching with exact and forbidden output constraints.
+- Validate capsule metadata, commands, and file paths before execution.
+
 ## v0.1.0-alpha.6
 
 - Harden failure targets so a generic `exception` or `crash` can no longer verify an unrelated non-zero exit.

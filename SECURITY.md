@@ -14,6 +14,8 @@ ReproFlow processes untrusted repository content, issue text, model output, and 
 - Generated experiment files are restricted to `.reproflow/experiments/` and cannot overwrite copied source files.
 - The reproduction phase runs without network access, with a read-only root filesystem, dropped Linux capabilities, `no-new-privileges`, CPU/memory/PID limits, and a timeout.
 - Host secrets and the Docker socket are not mounted into the reproduction container.
+- Capsule-declared `environment.variables` are copied verbatim into the reproduction process;
+  treat capsule files as public test data and never place credentials there.
 
 The GitHub Issue fetch occurs in the host CLI process before sandbox execution. The dependency/setup phase is currently performed during `docker build` and may have network access. A malicious repository can therefore execute package build logic inside that build environment. Do not pass secrets through Docker build args, build secrets, capsule files, or environment variables. Future releases should further isolate dependency acquisition from untrusted build hooks.
 

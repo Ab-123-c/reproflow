@@ -41,10 +41,24 @@ def match_failure(expectation: FailureExpectation, evidence: ExecutionEvidence) 
         matched_type = evidence.timed_out
         if not matched_type:
             reasons.append("process did not time out")
-    elif expectation.type in {"exception", "crash", "nonzero_exit", "output_mismatch"}:
+    elif expectation.type in {"exception", "crash", "nonzero_exit"}:
         matched_type = (not evidence.timed_out) and evidence.exit_code not in (None, 0)
         if not matched_type:
             reasons.append(f"expected a non-zero exit, got {evidence.exit_code}")
+    elif expectation.type == "output_mismatch":
+        matched_type = (not evidence.timed_out) and evidence.exit_code == 0
+        if not matched_type:
+            reasons.append(f"expected a successful exit for output comparison, got {evidence.exit_code}")
+        if expectation.stdout_equals is not None and evidence.stdout == expectation.stdout_equals:
+            reasons.append("stdout unexpectedly matched stdout_equals")
+        if expectation.stderr_equals is not None and evidence.stderr == expectation.stderr_equals:
+            reasons.append("stderr unexpectedly matched stderr_equals")
+        for token in expectation.stdout_not_contains:
+            if token in evidence.stdout:
+                reasons.append(f"stdout unexpectedly contained forbidden text: {token!r}")
+        for token in expectation.stderr_not_contains:
+            if token in evidence.stderr:
+                reasons.append(f"stderr unexpectedly contained forbidden text: {token!r}")
     else:
         matched_type = False
         reasons.append(f"unsupported failure type: {expectation.type}")
@@ -54,8 +68,9 @@ def match_failure(expectation: FailureExpectation, evidence: ExecutionEvidence) 
 
     if expectation.exception_class is not None:
         expected_name = expectation.exception_class.rsplit(".", 1)[-1]
-        if actual_exception != expected_name:
-            actual_label = actual_exception or "none detected"
+        actual_name = actual_exception.rsplit(".", 1)[-1] if actual_exception else None
+        if actual_name != expected_name:
+            actual_label = actual_name or "none detected"
             reasons.append(
                 f"expected exception {expectation.exception_class}, got {actual_label}"
             )
@@ -94,7 +109,7 @@ def match_failure(expectation: FailureExpectation, evidence: ExecutionEvidence) 
 
 def _extract_exception_name(stderr: str) -> str | None:
     matches = re.findall(
-        r"(?:^|\n)([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception|Warning))(?::|\n|$)",
+        r"(?:^|\n)([A-Za-z_][A-Za-z0-9_.]*(?:Error|Exception|Warning|Interrupt|Exit|Failure|Fault))(?::|\n|$)",
         stderr,
     )
     return matches[-1] if matches else None
@@ -134,6 +149,10 @@ def _signature(
             str(expectation.signal or ""),
             "|".join(expectation.stdout_contains),
             "|".join(expectation.stderr_contains),
+            expectation.stdout_equals or "",
+            expectation.stderr_equals or "",
+            "|".join(expectation.stdout_not_contains),
+            "|".join(expectation.stderr_not_contains),
         ]
     )
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]

@@ -38,7 +38,7 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 
 ## Status
 
-`v0.1.0-alpha.6` hardens failure targets so unrelated experiment failures are less likely to be mistaken for the reported bug:
+`v0.1.0` hardens failure targets so unrelated experiment failures are less likely to be mistaken for the reported bug. The current tree also includes maintainer and CI workflows:
 
 - `exception` targets require an exception identity or distinctive stderr marker
 - `exception_class` can match the final Python exception type directly
@@ -46,6 +46,8 @@ ReproFlow is evidence-first: model output is never treated as proof by itself.
 - `signal` understands Linux/container `128 + signal` statuses such as `139` for `SIGSEGV`
 - `nonzero_exit` remains the explicit broad matcher when any failing command is intentionally sufficient
 - deterministic Verifier remains the only component allowed to declare success
+- `init`, `list`, and `verify-all` commands for day-to-day capsule workflows
+- machine-readable run results, Markdown evidence reports, and pytest regression generation
 
 Existing evidence-first features remain available: GitHub Issue ingestion, bounded issue-aware repository context, repeated Docker verification, testcase minimization, and automation-friendly JSON diagnostics.
 
@@ -92,6 +94,19 @@ Check the local runtime:
 reproflow doctor
 ```
 
+Create a starter capsule:
+
+```bash
+reproflow init repro.yaml --id my-bug --title "My bug"
+```
+
+List or verify every capsule in a repository (useful in CI):
+
+```bash
+reproflow list .
+reproflow verify-all examples --repo . --json
+```
+
 Minimize a file in a verified capsule:
 
 ```bash
@@ -101,6 +116,19 @@ reproflow minimize examples/unicode-username/repro.yaml \
 ```
 
 Every accepted reduction is verified again in Docker; the original capsule remains untouched by default.
+
+Save machine-readable evidence and a Markdown report from a run:
+
+```bash
+reproflow run repro.yaml --output .repro/my-bug
+reproflow report .repro/my-bug
+```
+
+After a capsule is verified, generate a reviewable pytest regression test:
+
+```bash
+reproflow generate-regression repro.yaml --repo .
+```
 
 Run a capsule that depends on a source repository:
 
@@ -156,7 +184,9 @@ The provider may parse the Issue and propose experiments, but it cannot mark an 
 
 See [`docs/github-issues.md`](docs/github-issues.md) for the GitHub input trust boundary and limits.
 
-### Preview repository context — new in alpha.4
+See [`docs/ci.md`](docs/ci.md) for batch verification, JSON output, and CI artifact handling.
+
+### Preview repository context — available in v0.1.0
 
 Before spending model tokens or starting Docker, inspect the bounded repository snapshot that ReproFlow would expose to the planner:
 
@@ -179,6 +209,8 @@ metadata:
   title: Unicode username crashes ASCII normalization
 environment:
   image: python:3.12-slim
+  variables:
+    LC_ALL: C.UTF-8
 files:
   repro.py: |
     "你".encode("ascii")
@@ -193,6 +225,10 @@ verification:
   repetitions: 3
   required_failures: 3
 ```
+
+For deterministic output regressions, use `type: output_mismatch` with one of
+`stdout_equals`, `stderr_equals`, `stdout_not_contains`, or `stderr_not_contains`.
+The command must exit successfully and the declared output condition must fail.
 
 The important separation is between how to run the experiment and what counts as the target failure. A random non-zero exit should not automatically count as a successful reproduction.
 
@@ -229,9 +265,11 @@ The long-term goal is for `reproflow/v1` to remain useful even without any AI pr
 - [x] attempt history and evidence ledger
 - [x] GitHub Issue URL input
 - [x] smarter repository context selection
-- [ ] testcase minimizer
-- [ ] regression-test generation
-- [ ] GitHub Action
+- [x] testcase minimizer
+- [x] regression-test generation
+- [x] CI-friendly JSON evidence and Markdown reports
+- [x] capsule discovery and batch verification
+- [x] GitHub Action
 
 ## Contributing
 
@@ -281,7 +319,7 @@ ReproFlow 坚持 evidence-first：模型输出本身永远不等于证明。
 
 ## 当前状态
 
-`v0.1.0-alpha.6` 强化 failure target，避免把与目标 Bug 无关的非零退出误判为成功复现：
+`v0.1.0` 强化 failure target，避免把与目标 Bug 无关的非零退出误判为成功复现：
 
 - `exception` 必须提供异常类型或明确的 stderr 特征
 - 新增 `exception_class`，可以直接匹配最终 Python 异常类型
@@ -376,7 +414,7 @@ Issue 正文、评论、仓库内容和实验输出都按不可信数据处理�
 
 更多细节见 [`docs/github-issues.md`](docs/github-issues.md)。
 
-### alpha.4：先预览 Planner 上下文
+### v0.1.0：先预览 Planner 上下文
 
 在消耗模型请求或启动 Docker 之前，可以先看 ReproFlow 最终会选哪些仓库文件：
 
@@ -421,9 +459,11 @@ Verifier      → 判断目标故障是否确实复现
 - [x] attempt history and evidence ledger
 - [x] GitHub Issue URL input
 - [x] smarter repository context selection
-- [ ] testcase minimizer
-- [ ] regression-test generation
-- [ ] GitHub Action
+- [x] testcase minimizer
+- [x] regression-test generation
+- [x] CI-friendly JSON evidence and Markdown reports
+- [x] capsule discovery and batch verification
+- [x] GitHub Action
 
 ## 参与贡献
 
