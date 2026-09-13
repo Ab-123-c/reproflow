@@ -34,3 +34,14 @@ previously saved result later without Docker.
 
 This repository includes `.github/workflows/reproflow.yml`, which validates, verifies, and
 uploads the batch evidence on pushes and pull requests.
+
+## Issue automation
+
+The optional `.github/workflows/reproflow-issue.yml` workflow reacts to opened and reopened Issues. It runs the planner and deterministic verifier, uploads `.repro/github-issue` as an artifact, and posts a short status comment. Add an `OPENAI_API_KEY` repository secret when using the AI planner; without it the workflow still records a diagnostic result. The workflow uses read-only contents access and issue-comment permission only.
+
+To inspect or publish the result locally:
+
+```bash
+reproflow evidence .repro/github-issue --json
+reproflow badge .repro/github-issue --output reproflow-badge.svg
+```

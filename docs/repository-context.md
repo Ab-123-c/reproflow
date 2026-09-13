@@ -2,7 +2,7 @@
 
 ReproFlow does not send an entire repository to an agent provider. It builds a bounded snapshot of selected files.
 
-In `v0.1.1`, selection can use the bug report itself as an **untrusted relevance hint**. The issue text never becomes an instruction and it never causes repository code to execute.
+In `v0.1.2`, selection can use the bug report itself as an **untrusted relevance hint**. The issue text never becomes an instruction and it never causes repository code to execute.
 
 ## Selection rules
 

@@ -20,7 +20,13 @@ from reproflow.doctor import collect_doctor_report
 from reproflow.issue.source import IssueSourceError, load_issue_source
 from reproflow.minimizer import minimize_text
 from reproflow.regression import generate_regression_test
-from reproflow.report import load_verification_result, render_verification_markdown, write_verification_report
+from reproflow.report import (
+    load_verification_payload,
+    load_verification_result,
+    render_verification_markdown,
+    write_verification_report,
+)
+from reproflow.badge import write_badge
 from reproflow.repo.context import build_repository_snapshot
 from reproflow.repo.detector import detect_repository
 from reproflow.sandbox.docker import DockerSandboxRunner, DockerUnavailableError
@@ -335,7 +341,13 @@ def run_command(
         console.print(f"[red]Execution failed:[/red] {exc}")
         raise typer.Exit(code=4) from exc
     if output is not None:
-        write_verification_report(result, output, title=spec.metadata.title, spec_path=spec_path)
+        write_verification_report(
+            result,
+            output,
+            title=spec.metadata.title,
+            spec_path=spec_path,
+            spec=spec,
+        )
     if as_json:
         payload = result.model_dump(mode="json")
         payload["status"] = "VERIFIED" if result.reproduced else "NOT_REPRODUCED"
@@ -378,9 +390,39 @@ def report_command(
         console.print(f"[red]Report error:[/red] {exc}")
         raise typer.Exit(code=2) from exc
     if as_json:
-        _print_json(result.model_dump(mode="json"), ensure_ascii=False, indent=2)
+        _print_json(load_verification_payload(path), ensure_ascii=False, indent=2)
         return
     console.print(render_verification_markdown(result))
+
+
+@app.command("evidence")
+def evidence_command(
+    evidence: Path = typer.Argument(
+        ...,
+        exists=True,
+        help="Evidence directory or verification.json produced by ReproFlow.",
+    ),
+    as_json: bool = typer.Option(False, "--json", help="Emit the standardized evidence JSON."),
+) -> None:
+    """Inspect a standardized reproflow/evidence/v1 result."""
+    report_command(evidence, as_json)
+
+
+@app.command("badge")
+def badge_command(
+    evidence: Path = typer.Argument(..., exists=True, help="Evidence directory or verification.json."),
+    output: Path = typer.Option(Path("reproflow-badge.svg"), "--output", "-o", help="SVG output path."),
+) -> None:
+    """Generate a small SVG badge from verification evidence."""
+    path = evidence / "verification.json" if evidence.is_dir() else evidence
+    try:
+        result = load_verification_result(path)
+        write_badge(result, output)
+    except (ValueError, OSError) as exc:
+        console.print(f"[red]Badge error:[/red] {exc}")
+        raise typer.Exit(code=2) from exc
+    console.print(f"Wrote {output}")
+    raise typer.Exit(code=0 if result.reproduced else 1)
 
 
 @app.command("list")

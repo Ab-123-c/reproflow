@@ -54,3 +54,32 @@ def test_report_command_reads_persisted_verification(tmp_path: Path) -> None:
     result = runner.invoke(app, ["report", str(tmp_path)])
     assert result.exit_code == 0, result.stdout
     assert "VERIFIED REPRODUCTION" in result.stdout
+
+
+def test_evidence_json_preserves_v1_fields_and_badge(tmp_path: Path) -> None:
+    evidence = ExecutionEvidence(
+        command="python repro.py",
+        exit_code=1,
+        stdout="",
+        stderr="RuntimeError: boom\n",
+        duration_ms=2,
+        timed_out=False,
+        environment_hash="abc",
+    )
+    verification = VerificationResult(
+        reproduced=True,
+        successful_runs=1,
+        total_runs=1,
+        stable_signature="RuntimeError:abc",
+        runs=[RunVerification(matched=True, signature="RuntimeError:abc", evidence=evidence)],
+    )
+    write_verification_report(verification, tmp_path)
+    payload = json.loads((tmp_path / "verification.json").read_text())
+    assert payload["format"] == "reproflow/evidence/v1"
+    assert payload["status"] == "verified"
+    result = runner.invoke(app, ["evidence", str(tmp_path), "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["format"] == "reproflow/evidence/v1"
+    badge = runner.invoke(app, ["badge", str(tmp_path), "-o", str(tmp_path / "badge.svg")])
+    assert badge.exit_code == 0
+    assert "Verified" in (tmp_path / "badge.svg").read_text()

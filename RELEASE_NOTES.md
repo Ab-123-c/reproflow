@@ -1,11 +1,17 @@
-# ReproFlow v0.1.1 — Patch release
+# ReproFlow v0.1.2 — Evidence workflow release
 
-This patch release synchronizes the package and documentation version to `0.1.1` and keeps the
-stable release workflow ready for GitHub publishing. Capsules can be scaffolded, discovered,
-batch-verified, exported as stable JSON, and converted into reviewable pytest regression tests.
-Each verification can also produce a Markdown evidence report.
+This release standardizes verification evidence and adds GitHub Issue automation. Capsules can be
+scaffolded, discovered, batch-verified, exported as stable JSON, and converted into reviewable pytest
+regression tests. Each verification can also produce a Markdown evidence report and an SVG badge.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the complete list of changes.
+
+
+## 0.1.2 highlights
+
+- Persist `reproflow/evidence/v1` evidence with repeatability, execution, failure, and environment details.
+- Inspect saved evidence with `reproflow evidence` and generate a badge with `reproflow badge`.
+- Enable `.github/workflows/reproflow-issue.yml` to reproduce opened or reopened issues. Set the optional `OPENAI_API_KEY` repository secret for AI planning.
 
 ## v0.1.0 feature baseline
 

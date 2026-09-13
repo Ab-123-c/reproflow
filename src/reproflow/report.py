@@ -11,12 +11,38 @@ import json
 from pathlib import Path
 from typing import Any
 
+from reproflow.capsule.schema import ReproSpec
 from reproflow.verifier.models import VerificationResult
 
 
-def verification_payload(result: VerificationResult) -> dict[str, Any]:
+def verification_payload(
+    result: VerificationResult,
+    *,
+    spec: ReproSpec | None = None,
+) -> dict[str, Any]:
     """Return a stable, JSON-serialisable representation of verification evidence."""
-    return result.model_dump(mode="json")
+    payload = result.model_dump(mode="json", exclude_none=True)
+    payload["format"] = "reproflow/evidence/v1"
+    payload["status"] = "verified" if result.reproduced else "not_reproduced"
+    payload["repetitions"] = {
+        "required": spec.verification.required_failures if spec else result.total_runs,
+        "successful": result.successful_runs,
+        "total": result.total_runs,
+    }
+    payload["execution"] = {
+        "runs": result.total_runs,
+        "matched_runs": result.successful_runs,
+        "timed_out_runs": sum(run.evidence.timed_out for run in result.runs),
+    }
+    if spec is not None:
+        failure = spec.failure.model_dump(mode="json", exclude_none=True)
+        payload["failure"] = failure
+        payload["environment"] = {
+            "image": spec.environment.image,
+            "variables": spec.environment.variables,
+            "hashes": sorted({run.evidence.environment_hash for run in result.runs}),
+        }
+    return payload
 
 
 def write_verification_report(
@@ -25,12 +51,13 @@ def write_verification_report(
     *,
     title: str | None = None,
     spec_path: Path | None = None,
+    spec: ReproSpec | None = None,
 ) -> tuple[Path, Path]:
     """Write ``verification.json`` and a concise Markdown report into ``output``."""
     output.mkdir(parents=True, exist_ok=True)
     json_path = output / "verification.json"
     json_path.write_text(
-        json.dumps(verification_payload(result), indent=2, ensure_ascii=False) + "\n",
+        json.dumps(verification_payload(result, spec=spec), indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     markdown_path = output / "report.md"
@@ -94,11 +121,19 @@ def _tail(value: str, limit: int = 4_000) -> str:
 
 def load_verification_result(path: Path) -> VerificationResult:
     """Load a previously persisted verifier result from a JSON file."""
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError(f"Could not read verification JSON: {exc}") from exc
+    payload = load_verification_payload(path)
     try:
         return VerificationResult.model_validate(payload)
     except Exception as exc:
         raise ValueError(f"Invalid verification JSON: {exc}") from exc
+
+
+def load_verification_payload(path: Path) -> dict[str, Any]:
+    """Load raw evidence JSON while preserving the v1 extension fields."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Could not read verification JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Invalid verification JSON: expected an object")
+    return payload

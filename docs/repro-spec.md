@@ -1,4 +1,4 @@
-# reproflow/v1 draft specification
+# reproflow/v1 specification
 
 `reproflow/v1` is a minimal, executable description of a bug reproduction.
 
@@ -27,9 +27,17 @@ backslashes, NUL bytes, and empty names are rejected before Docker is invoked.
 
 The runtime, not an LLM, decides whether the reproduction is verified.
 
+## Evidence output
+
+Verifier reports use the independent `reproflow/evidence/v1` JSON format. The top-level
+`status` is `verified` or `not_reproduced`; `repetitions` records required, successful, and
+total runs; `execution` records run and timeout counts. When a capsule is available, `failure`
+and `environment` preserve the declared target and runtime details. Additional fields may be
+added in future versions without changing the `reproflow/v1` capsule schema.
+
 ## Failure targets
 
-A failure target should be specific enough to distinguish the reported bug from an unrelated experiment failure. In v0.1.1, `exception` and `crash` targets are therefore validated more strictly:
+A failure target should be specific enough to distinguish the reported bug from an unrelated experiment failure. In v0.1.2, `exception` and `crash` targets are therefore validated more strictly:
 
 ```yaml
 failure:

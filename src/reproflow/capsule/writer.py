@@ -7,7 +7,7 @@ import yaml
 
 from reproflow.agent.models import PlanningResult
 from reproflow.capsule.schema import ReproSpec
-from reproflow.report import render_verification_markdown
+from reproflow.report import render_verification_markdown, verification_payload
 
 
 def write_repro_spec(spec: ReproSpec, path: Path) -> Path:
@@ -42,7 +42,13 @@ def write_planning_result(result: PlanningResult, output_dir: Path) -> Path | No
         verification = result.history.attempts[-1].verification
     if verification is not None:
         (output_dir / "verification.json").write_text(
-            verification.model_dump_json(indent=2), encoding="utf-8"
+            json.dumps(
+                verification_payload(verification, spec=result.final_spec),
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
         )
         (output_dir / "report.md").write_text(
             render_verification_markdown(

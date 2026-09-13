@@ -1,5 +1,12 @@
 # Roadmap
 
+## v0.1.2 — evidence and issue automation
+
+- [x] versioned `reproflow/evidence/v1` JSON output
+- [x] `reproflow evidence` inspection command
+- [x] SVG verification badge generation
+- [x] GitHub Issue workflow with artifact upload and status comments
+
 ## v0.1.0-alpha.1 — deterministic reproduction runtime
 
 - [x] Python repository inspection

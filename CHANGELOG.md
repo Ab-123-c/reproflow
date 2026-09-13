@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.2
+
+- Standardize persisted verification output as `reproflow/evidence/v1` with status, repetition, execution, failure, and environment fields.
+- Add `reproflow evidence` for machine-readable evidence inspection and `reproflow badge` for an SVG verification badge.
+- Add an optional GitHub Issue workflow that runs reproduction, uploads evidence, and comments on the issue.
+- Synchronize package, CLI, and documentation version metadata to `0.1.2`.
+
 ## v0.1.1
 
 - Synchronize the package, CLI, documentation, and GitHub API user-agent version to `0.1.1`.
